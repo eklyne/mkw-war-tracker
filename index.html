@@ -154,7 +154,9 @@ aside { position: sticky; top: 64px; }
 
 /* Tracks: one row per cup, in game order. Filtering DIMS rather than removes,
    so the grid never reflows under the cursor. Played tracks are struck out. */
-.tracks { display: grid; grid-template-columns: repeat(4, 1fr); gap: 3px; margin-top: var(--sp-2); }
+.tracks { display: grid; grid-template-columns: 22px repeat(4, 1fr); gap: 3px; margin-top: var(--sp-2); }
+.cup-ico { display: flex; align-items: center; justify-content: center; color: var(--muted); }
+.cup-ico svg { width: 16px; height: 16px; fill: currentColor; }
 .chip.is-dim { opacity: .25; }
 .chip.is-played:not(.is-on) { text-decoration: line-through; color: var(--muted); }
 .chip.is-first:not(.is-on) { border-color: var(--accent); border-style: dashed; color: var(--ink); }
@@ -300,7 +302,7 @@ svg .penmark { fill: var(--bad-ink); font-size: 9px; font-weight: 700; font-fami
           <span class="badge" id="entryBadge" hidden>Editing</span>
         </div>
 
-        <input class="field" id="trackQ" autocomplete="off" spellcheck="false" placeholder="Track — type or click">
+        <input class="field" id="trackQ" autocomplete="off" spellcheck="false" placeholder="Track (type or click)">
         <div class="tracks" id="tracks"></div>
 
         <div class="label">Spots <span id="spotCount">0/5</span></div>
@@ -331,7 +333,7 @@ svg .penmark { fill: var(--bad-ink); font-size: 9px; font-weight: 700; font-fami
           <label><span>Opponent</span><input class="field" id="aTag" maxlength="14" placeholder="A"></label>
         </div>
         <div class="btn-row" style="margin-top: var(--sp-3)">
-          <button class="btn" id="copy">Copy results</button>
+          <button class="btn" id="copy">Copy score</button>
           <button class="btn-reset" id="newWar">New war</button>
         </div>
       </div>
@@ -385,6 +387,18 @@ const CUPS = [
   ['Leaf',     [['rDH', 'DS Desert Hills', ['dh']], ['rBC3', 'GBA Bowser Castle 3', ['bc3']], ['rDKJP', "N64 DK's Jungle Parkway", ['dkjp', 'jp']], ['rMC', 'GCN Mario Circuit', ['gcn mc']]]],
   ['Lightning',[['rMC3', 'SNES Mario Circuit 3', ['mc3']], ['rPG', 'DS Peach Gardens', ['pg']], ['rDKM', 'GCN DK Mountain', ['dkm']], ['rBC', "N64 Bowser's Castle", ['n64 bc']]]],
 ];
+// Original, simple shapes (not Nintendo artwork), one per cup, drawn in a 16x16 box.
+const CUP_ICONS = {
+  Mushroom: '<path d="M2 9a6 6 0 0 1 12 0z"/><rect x="5.5" y="10" width="5" height="4.5" rx="1"/>',
+  Flower: '<path d="M7.3 7.5h1.4V15H7.3z"/><path d="M8 13c0-2.2 1.8-3 4-2.8 0 2.1-1.5 3.3-4 2.8z"/><g transform="translate(8 5.2)"><ellipse cx="0" cy="-2.8" rx="1.7" ry="2.3"/><ellipse cx="0" cy="-2.8" rx="1.7" ry="2.3" transform="rotate(72)"/><ellipse cx="0" cy="-2.8" rx="1.7" ry="2.3" transform="rotate(144)"/><ellipse cx="0" cy="-2.8" rx="1.7" ry="2.3" transform="rotate(216)"/><ellipse cx="0" cy="-2.8" rx="1.7" ry="2.3" transform="rotate(288)"/><circle r="1.5" fill="var(--plane)"/></g>',
+  Star: '<path d="M8 1.5l2 4.5 4.5.3-3.5 3 1.2 4.7L8 11.5 3.8 14l1.2-4.7-3.5-3L6 6z"/>',
+  Special: '<path d="M1.5 13V4.5L5 8l3-5 3 5 3.5-3.5V13z"/>',
+  Shell: '<path d="M2.8 8.5C2.8 4.2 5.2 2 8.5 2s5.7 2.2 5.7 6.5z"/><path d="M8.5 2.3L7.8 8.5M4 5.5l3.8.6M13 5.3l-3.5.8" fill="none" stroke="var(--plane)" stroke-width=".8"/><path fill-rule="evenodd" d="M3.8 11c0 3 2 4 4.2 4s4.2-1 4.2-4zM6 11.8a1.1 1.4 0 1 0 0 .01zM10 11.8a1.1 1.4 0 1 0 0 .01z"/><rect x="0.8" y="7.8" width="14.4" height="3.4" rx="1.7"/>',
+  Banana: '<path d="M1.5 9.6C1.5 8.8 2.3 8.5 3.5 8.6 7 8.8 9.8 6.5 11 4l.2-2.2 2.4.2-.2 2c1.4 2 .8 5.5-1.9 8C9 14.2 4.5 14.5 2.5 12.5z"/><path d="M3 10.6C7 12 11.5 9.5 12.3 5.2" fill="none" stroke="var(--plane)" stroke-width=".8"/>',
+  Leaf: '<path d="M13.5 2C6 2 2.5 5.5 2.5 9.5c0 1.5.6 2.8 1.5 3.7L7.5 9 5 14.4c.9.4 1.9.6 3 .6 4 0 6.5-4 5.5-13z"/>',
+  Lightning: '<path d="M9.5 1L3 9h4l-1 6 7-8.5H9z"/>',
+};
+const cupIcon = cup => `<span class="cup-ico" title="${cup} Cup"><svg viewBox="0 0 16 16" aria-hidden="true">${CUP_ICONS[cup]}</svg></span>`;
 const norm = s => s.toLowerCase().replace(/['’.]/g, '').replace(/\s+/g, ' ').trim();
 const TRACKS = [];
 CUPS.forEach(([cup, list]) => list.forEach(([code, name, aliases]) => {
@@ -510,13 +524,14 @@ function renderTracks() {
   const q = $('trackQ').value;
   const matches = matchTracks(q), used = usedTracks();
   const first = q.trim() ? enterTarget(matches, used) : null;
-  $('tracks').innerHTML = TRACKS.map(t => {
+  $('tracks').innerHTML = TRACKS.map((t, i) => {
     const cls = ['chip'];
     if (draft.track === t.code) cls.push('is-on');
     if (used.has(t.code)) cls.push('is-played');
     if (q.trim() && !matches.includes(t)) cls.push('is-dim');
     if (first === t) cls.push('is-first');
-    return `<button class="${cls.join(' ')}" data-track="${t.code}" title="${esc(t.name)}" tabindex="-1">${t.code}</button>`;
+    const btn = `<button class="${cls.join(' ')}" data-track="${t.code}" title="${esc(t.name)}" tabindex="-1">${t.code}</button>`;
+    return (i % 4 === 0 ? cupIcon(t.cup) : '') + btn;
   }).join('');
 }
 
@@ -850,6 +865,10 @@ $('newWar').addEventListener('click', () => {
   selectSlot(0);
 });
 
+function scoreText() {
+  const rs = rows(), last = rs[N_RACES - 1];
+  return `${F()} ${last.cf} - ${last.ca} ${A()} (${rs.filter(r => r.played).length}/${N_RACES})`;
+}
 function resultsText() {
   const rs = rows(), last = rs[N_RACES - 1];
   const lines = [`${F()} ${last.cf} – ${last.ca} ${A()}  (${signed(last.cd)})`, ''];
@@ -863,7 +882,7 @@ function resultsText() {
   return '```\n' + lines.join('\n').replace(/−/g, '-') + '\n```';
 }
 $('copy').addEventListener('click', async () => {
-  const text = resultsText();
+  const text = scoreText();
   try { await navigator.clipboard.writeText(text); toast('Copied'); return; } catch (e) {}
   const ta = document.createElement('textarea');
   ta.value = text; document.body.appendChild(ta); ta.select();
