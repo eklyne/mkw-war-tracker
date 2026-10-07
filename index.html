@@ -319,7 +319,6 @@ svg .penmark { fill: var(--bad-ink); font-size: 9px; font-weight: 700; font-fami
           <button class="btn" id="cancel">Done</button>
           <button class="btn-reset" id="del">Delete race</button>
         </div>
-        <div class="keys"><kbd>1</kbd>–<kbd>9</kbd> <kbd>0</kbd>=10th · <kbd>⌫</kbd> undo · saves on the 5th</div>
       </div>
 
       <div class="panel" id="donePanel" hidden>
@@ -524,7 +523,7 @@ function renderTracks() {
 function renderSpots() {
   let html = '';
   for (let p = 1; p <= 10; p++)
-    html += `<button class="chip spot${draft.pos.includes(p) ? ' is-on' : ''}" data-pos="${p}" tabindex="-1"><b>${ordinal(p)}</b><small>${POINTS[p - 1]}</small></button>`;
+    html += `<button class="chip spot${draft.pos.includes(p) ? ' is-on' : ''}" data-pos="${p}" tabindex="-1"><b>${ordinal(p)}</b><small>${p % 10}</small></button>`;
   $('spots').innerHTML = html;
   $('spotCount').textContent = `${draft.pos.length}/${TEAM}`;
   const t = draft.track && TRACK[draft.track];
