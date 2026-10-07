@@ -1,0 +1,905 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>War Tracker</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect x='2' y='2' width='20' height='20' rx='5' fill='%232a3382'/%3E%3Cpath d='M2 7a5 5 0 0 1 5-5h15L2 22Z' fill='%235d73ea'/%3E%3C/svg%3E">
+<script>
+  // Theme before first paint, so a dark-mode reader never sees a white flash.
+  (function () {
+    try {
+      var t = localStorage.getItem('mkw-war-tracker:theme');
+      if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t;
+    } catch (e) {}
+  })();
+</script>
+<style>
+/* ── MKW War Tracker ──────────────────────────────────────────────────────────
+   Built on the Shadow Tag design system (shadow-tag/web/style.css): same
+   tokens, controls and chart styling, copied so this folder is self-contained
+   and opens by double-click with no server.
+   INDIGO = selection/focus. GREEN = F gained. RED = A gained. Every +/- also
+   carries an explicit sign, so nothing reads by hue alone. */
+@font-face { font-family: 'Inter'; src: url('./fonts/inter-latin-var.woff2') format('woff2');
+             font-weight: 100 900; font-style: normal; font-display: swap; }
+@font-face { font-family: 'JetBrains Mono'; src: url('./fonts/jetbrains-mono-latin-var.woff2') format('woff2');
+             font-weight: 400 700; font-style: normal; font-display: swap; }
+
+:root {
+  color-scheme: light;
+  --plane: #f7f7f5; --surface: #fdfdfc; --raised: #ffffff; --inset: #f2f2ef;
+  --plane-veil: rgba(247,247,245,.86);
+  --ink: #101014; --ink-2: #4a4a52; --muted: #86868f;
+  --grid: #e6e6e2; --border: #e3e3de; --border-hard: #cdcdc6;
+  --accent: #485ace; --accent-ink: #485ace; --accent-soft: rgba(72,90,206,.10); --accent-deep: #1e2770;
+  --good: #03a14a; --good-ink: #00893d;
+  --bad: #b71824; --bad-ink: #b71824; --bad-soft: rgba(183,24,36,.09);
+  --flat: #6f6e78; --peer: #8e8d86;
+  --sp-1: 4px; --sp-2: 8px; --sp-3: 12px; --sp-4: 16px; --sp-5: 24px;
+  --r-sm: 6px; --r-md: 10px; --r-lg: 14px;
+  --t-label: 11px; --t-micro: 10.5px;
+  --font-ui: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, Consolas, 'Cascadia Mono', monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --plane: #0a0a0c; --surface: #131317; --raised: #1a1a1f; --inset: #212127;
+    --plane-veil: rgba(10,10,12,.82);
+    --ink: #f2f2f5; --ink-2: #a9a9b4; --muted: #74747f;
+    --grid: #26262d; --border: #26262e; --border-hard: #3a3a45;
+    --accent: #5d73ea; --accent-ink: #7d90f5; --accent-soft: rgba(93,115,234,.16); --accent-deep: #2a3382;
+    --good: #21ac54; --good-ink: #2bbb5d;
+    --bad: #cc3336; --bad-ink: #e54b4a; --bad-soft: rgba(229,75,74,.13);
+    --flat: #8a8a95; --peer: #6b6a70;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --plane: #0a0a0c; --surface: #131317; --raised: #1a1a1f; --inset: #212127;
+  --plane-veil: rgba(10,10,12,.82);
+  --ink: #f2f2f5; --ink-2: #a9a9b4; --muted: #74747f;
+  --grid: #26262d; --border: #26262e; --border-hard: #3a3a45;
+  --accent: #5d73ea; --accent-ink: #7d90f5; --accent-soft: rgba(93,115,234,.16); --accent-deep: #2a3382;
+  --good: #21ac54; --good-ink: #2bbb5d;
+  --bad: #cc3336; --bad-ink: #e54b4a; --bad-soft: rgba(229,75,74,.13);
+  --flat: #8a8a95; --peer: #6b6a70;
+}
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { margin: 0; background: var(--plane); color: var(--ink);
+       font: 13.5px/1.55 var(--font-ui); font-variant-numeric: tabular-nums;
+       -webkit-font-smoothing: antialiased; }
+button, input { font: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: var(--r-sm); }
+
+.wrap { max-width: 1320px; margin: 0 auto; padding: var(--sp-5) var(--sp-5) 48px; }
+@media (max-width: 560px) { .wrap { padding: var(--sp-4) var(--sp-4) 32px; } }
+
+/* ── app bar ── */
+.appbar { position: sticky; top: 0; z-index: 20; background: var(--plane-veil);
+          backdrop-filter: saturate(140%) blur(10px); -webkit-backdrop-filter: saturate(140%) blur(10px);
+          border-bottom: 1px solid var(--border); }
+.appbar__in { max-width: 1320px; margin: 0 auto; padding: 0 var(--sp-5); height: 48px;
+              display: flex; align-items: center; gap: var(--sp-4); }
+.brand { display: flex; align-items: center; gap: var(--sp-2); }
+.brand__logo { width: 20px; height: 20px; display: block; }
+.brand__lit { fill: var(--accent); } .brand__shade { fill: var(--accent-deep); }
+.brand__name { font-variant-caps: small-caps; font-size: 16px; font-weight: 680; letter-spacing: .07em; }
+.seg { margin-left: auto; display: flex; background: var(--surface); border: 1px solid var(--border);
+       border-radius: var(--r-sm); padding: 2px; gap: 2px; }
+.seg__b { border: 0; background: none; cursor: pointer; color: var(--muted); font-size: var(--t-micro);
+          font-weight: 600; padding: 3px 8px; border-radius: 4px; }
+.seg__b:hover { color: var(--ink); }
+.seg__b.is-on { background: var(--accent-soft); color: var(--accent-ink); }
+
+/* ── scoreboard ── */
+.board { background: var(--raised); border: 1px solid var(--border); border-radius: var(--r-lg);
+         padding: var(--sp-4) var(--sp-5); margin-bottom: var(--sp-5);
+         --tone: var(--peer);
+         background-image: linear-gradient(var(--tone), var(--tone));
+         background-size: 100% 4px; background-repeat: no-repeat; background-position: top; }
+.board[data-tone="good"] { --tone: var(--good); }
+.board[data-tone="bad"]  { --tone: var(--bad); }
+.board__row { display: grid; grid-template-columns: 1fr auto 1fr; align-items: end; gap: var(--sp-4); }
+.team__k, .lead__k { font-size: var(--t-label); text-transform: uppercase; letter-spacing: .08em;
+                     color: var(--muted); font-weight: 600; }
+.team__k { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Tags keep the case they were typed in: ALL-CAPS would turn the lowercase nu
+   of the default Λν into a capital nu, which reads as an N. */
+.team__k, #thF, #thA, .tag { text-transform: none; }
+.team__v { font-family: var(--font-mono); font-size: 30px; font-weight: 600; letter-spacing: -.02em; line-height: 1.15; }
+.team--a { text-align: right; }
+.lead { text-align: center; }
+.lead__v { font-family: var(--font-mono); font-size: 44px; font-weight: 650; letter-spacing: -.03em; line-height: 1; }
+.lead__k { margin-top: var(--sp-2); }
+.board__status { margin-top: var(--sp-3); padding-top: var(--sp-3); border-top: 1px solid var(--border);
+                 display: flex; justify-content: center; }
+.pips { display: flex; gap: 3px; }
+.pips i { width: 14px; height: 6px; border-radius: 2px; background: var(--grid); }
+.pips i.pos { background: var(--good); } .pips i.neg { background: var(--bad); } .pips i.lvl { background: var(--flat); }
+.pips i.cur { background: none; outline: 1.5px solid var(--accent); outline-offset: -1.5px; }
+@media (max-width: 560px) { .lead__v { font-size: 34px; } .team__v { font-size: 24px; } }
+.is-gain { color: var(--good-ink); } .is-loss { color: var(--bad-ink); } .is-level { color: var(--ink); }
+
+/* ── layout ── */
+.layout { display: grid; grid-template-columns: 320px minmax(0, 1fr); gap: var(--sp-5); align-items: start; }
+@media (max-width: 960px) { .layout { grid-template-columns: 1fr; } }
+aside { position: sticky; top: 64px; }
+@media (max-width: 960px) { aside { position: static; } }
+
+.panel { padding: var(--sp-4) 0; border-bottom: 1px solid var(--border); }
+.panel:first-child { padding-top: 0; }
+.panel:last-child { border-bottom: 0; }
+.panel__head { display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--sp-3); }
+.panel__title { font-size: 17px; font-weight: 650; letter-spacing: -.01em; }
+.badge { font-size: var(--t-micro); font-weight: 600; text-transform: uppercase; letter-spacing: .06em;
+         color: var(--accent-ink); background: var(--accent-soft); padding: 2px 8px; border-radius: 99px; }
+.label { font-size: var(--t-micro); color: var(--ink-2); font-weight: 600; text-transform: uppercase;
+         letter-spacing: .06em; display: flex; justify-content: space-between; margin: var(--sp-4) 0 var(--sp-2); }
+.label span { color: var(--muted); letter-spacing: 0; }
+
+.field { font: inherit; font-size: 13px; width: 100%; padding: 7px 10px; border-radius: var(--r-sm);
+         border: 1px solid var(--border); background: var(--raised); color: var(--ink); }
+.field:hover { border-color: var(--border-hard); }
+.field:focus { border-color: var(--accent); outline: none; box-shadow: 0 0 0 3px var(--accent-soft); }
+
+.chip { cursor: pointer; border-radius: var(--r-sm); border: 1px solid var(--border);
+        background: var(--surface); color: var(--ink-2); padding: 5px 2px; font-size: 11px; font-weight: 500;
+        text-align: center; transition: background .12s, color .12s, border-color .12s, opacity .12s; }
+.chip:hover { border-color: var(--border-hard); color: var(--ink); }
+.chip.is-on { background: var(--accent-soft); color: var(--accent-ink); border-color: var(--accent); font-weight: 600; }
+
+/* Tracks: one row per cup, in game order. Filtering DIMS rather than removes,
+   so the grid never reflows under the cursor. Played tracks are struck out. */
+.tracks { display: grid; grid-template-columns: repeat(4, 1fr); gap: 3px; margin-top: var(--sp-2); }
+.chip.is-dim { opacity: .25; }
+.chip.is-played:not(.is-on) { text-decoration: line-through; color: var(--muted); }
+.chip.is-first:not(.is-on) { border-color: var(--accent); border-style: dashed; color: var(--ink); }
+
+.spots { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; }
+.spot { padding: 6px 2px 5px; line-height: 1.15; }
+.spot b { display: block; font-size: 14px; font-weight: 650; }
+.spot small { font-size: 9.5px; color: var(--muted); }
+.spot.is-on small { color: var(--accent-ink); }
+
+.preview { margin-top: var(--sp-2); padding: 7px var(--sp-3); border-radius: var(--r-sm); background: var(--inset);
+           font-size: 12.5px; color: var(--ink-2); display: flex; justify-content: space-between; align-items: center;
+           min-height: 34px; font-family: var(--font-mono); }
+.preview b { color: var(--ink); font-weight: 600; }
+.pen-tag { color: var(--bad-ink); font-size: .85em; margin-left: 3px; }
+
+/* Penalties: points taken off a team in this race. Hidden behind a link unless
+   the race already carries one. */
+.linkbtn { border: 0; background: none; padding: 0; cursor: pointer; color: var(--accent-ink);
+           font-size: 12px; font-weight: 600; margin-top: var(--sp-3); }
+.linkbtn:hover { text-decoration: underline; }
+.pens { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-2); margin-top: var(--sp-3); }
+.pen { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; color: var(--ink-2); }
+.pen > span { white-space: nowrap; max-width: 70px; overflow: hidden; text-overflow: ellipsis; }
+.pen .field { padding: 6px 8px; font-family: var(--font-mono); }
+.err { color: var(--bad-ink); font-size: 12px; margin-top: var(--sp-2); }
+.err:empty { display: none; }
+
+.btn-primary { display: block; width: 100%; margin-top: var(--sp-4); padding: 10px; cursor: pointer;
+               font-size: 13.5px; font-weight: 650; color: var(--accent-ink); background: var(--accent-soft);
+               border: 1px solid var(--accent); border-radius: var(--r-sm); }
+.btn-primary:disabled { cursor: not-allowed; opacity: .45; }
+.btn-row { display: flex; gap: var(--sp-2); margin-top: var(--sp-3); }
+.btn-row:empty { display: none; }
+.btn, .btn-reset { flex: 1; cursor: pointer; padding: 7px 8px; font-size: 12px; font-weight: 600;
+                   border-radius: var(--r-sm); }
+.btn { color: var(--ink-2); background: var(--surface); border: 1px solid var(--border); }
+.btn:hover { border-color: var(--border-hard); color: var(--ink); }
+.btn-reset { color: var(--bad-ink); background: var(--bad-soft); border: 1px solid transparent; }
+.btn-reset:hover { border-color: var(--bad); }
+.keys { color: var(--muted); font-size: var(--t-micro); margin-top: var(--sp-3); text-align: center; }
+.keys kbd { font-family: var(--font-mono); font-size: 10px; padding: 0 4px; border: 1px solid var(--border-hard);
+            border-radius: 3px; color: var(--ink-2); }
+.done { padding: var(--sp-3); border-radius: var(--r-sm); background: var(--inset); color: var(--ink-2); font-size: 12.5px; }
+.tags { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-2); }
+.tags label span { display: block; font-size: var(--t-micro); color: var(--muted); font-weight: 600;
+                   text-transform: uppercase; letter-spacing: .06em; margin-bottom: 2px; }
+
+/* ── cards ── */
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-md);
+        padding: var(--sp-4); margin-bottom: var(--sp-4); }
+.chart__title { font-size: var(--t-label); font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .07em; }
+.chart { position: relative; margin-top: var(--sp-2); }
+.chart + .chart__title { display: block; margin-top: var(--sp-3); padding-top: var(--sp-3); border-top: 1px solid var(--border); }
+.chart svg { display: block; width: 100%; height: auto; overflow: visible; }
+
+svg .grid { stroke: var(--grid); stroke-width: 1; }
+svg .zero { stroke: var(--ink-2); stroke-width: 1.5; }
+svg .tick { fill: var(--muted); font-size: 10px; font-family: var(--font-ui); }
+svg .tick-sel { fill: var(--accent-ink); font-size: 10.5px; font-weight: 700; font-family: var(--font-ui); }
+svg .zone { fill: var(--muted); font-size: 9.5px; font-weight: 600; letter-spacing: .06em; font-family: var(--font-ui); }
+svg .empty { fill: var(--muted); font-size: 12px; font-family: var(--font-ui); }
+svg .col { fill: var(--inset); opacity: 0; }
+svg .col.is-hover { opacity: 1; }
+svg .col.is-sel { fill: var(--accent-soft); opacity: .7; }
+svg .hit { fill: transparent; cursor: pointer; }
+svg .area-pos { fill: var(--good); opacity: .14; }
+svg .area-neg { fill: var(--bad); opacity: .14; }
+svg .line { fill: none; stroke: var(--ink); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+svg .dot { stroke: var(--surface); stroke-width: 2; }
+svg .pos { fill: var(--good); } svg .neg { fill: var(--bad); } svg .lvl { fill: var(--flat); }
+svg .endlab { fill: var(--ink); font-size: 12px; font-weight: 650; font-family: var(--font-mono); }
+svg .penmark { fill: var(--bad-ink); font-size: 9px; font-weight: 700; font-family: var(--font-ui); }
+
+.tip { position: fixed; z-index: 50; pointer-events: none; min-width: 170px;
+       padding: var(--sp-2) var(--sp-3); border-radius: var(--r-sm); background: var(--raised);
+       border: 1px solid var(--border-hard); box-shadow: 0 6px 20px rgba(0,0,0,.22);
+       font-size: 12px; color: var(--ink-2); line-height: 1.55; }
+.tip__h { color: var(--ink); font-weight: 600; margin-bottom: 2px; }
+.tip__r { display: flex; justify-content: space-between; gap: var(--sp-4); }
+.tip__r b { font-family: var(--font-mono); color: var(--ink); font-weight: 600; }
+
+/* ── race table ── */
+.tbl-wrap { overflow-x: auto; margin-top: var(--sp-2); }
+.races { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+.races th { text-align: right; font-size: var(--t-label); text-transform: uppercase; letter-spacing: .08em;
+            color: var(--muted); font-weight: 600; padding: 0 var(--sp-2) var(--sp-2); white-space: nowrap; }
+.races th.l, .races td.l { text-align: left; }
+.races td { padding: 6px var(--sp-2); border-top: 1px solid var(--border); text-align: right;
+            white-space: nowrap; color: var(--ink-2); font-family: var(--font-mono); }
+.races td.num { font-family: var(--font-ui); font-weight: 650; color: var(--ink); width: 30px; }
+.races td.trk { font-family: var(--font-ui); color: var(--ink); font-weight: 600; }
+.races td.lead { font-weight: 650; }
+.races tbody tr { cursor: pointer; }
+.races tbody tr:hover td { background: var(--inset); }
+.races tbody tr.is-sel td { background: var(--accent-soft); }
+.races tbody tr.is-sel td.num { color: var(--accent-ink); }
+.races tbody tr.is-empty td { color: var(--muted); }
+.races tfoot td { border-top: 2px solid var(--border-hard); font-weight: 650; color: var(--ink); padding-top: var(--sp-2); }
+
+.toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); z-index: 60;
+         background: var(--ink); color: var(--plane); padding: 8px 14px; border-radius: var(--r-sm);
+         font-size: 12.5px; font-weight: 600; opacity: 0; transition: opacity .15s; pointer-events: none; }
+.toast.is-on { opacity: 1; }
+</style>
+</head>
+<body>
+
+<header class="appbar">
+  <div class="appbar__in">
+    <span class="brand">
+      <svg class="brand__logo" viewBox="0 0 24 24" aria-hidden="true">
+        <rect class="brand__shade" x="2" y="2" width="20" height="20" rx="5"/>
+        <path class="brand__lit" d="M2 7a5 5 0 0 1 5-5h15L2 22Z"/>
+      </svg>
+      <span class="brand__name">War Tracker</span>
+    </span>
+    <div class="seg" id="theme" role="group" aria-label="Theme">
+      <button class="seg__b" data-t="auto">Auto</button>
+      <button class="seg__b" data-t="light">Light</button>
+      <button class="seg__b" data-t="dark">Dark</button>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+  <section class="board" id="board" aria-live="polite">
+    <div class="board__row">
+      <div><div class="team__k" id="bFK">Λν</div><div class="team__v" id="bF">0</div></div>
+      <div class="lead"><div class="lead__v" id="bLead">0</div><div class="lead__k" id="bLeadK">Lead</div></div>
+      <div class="team--a"><div class="team__k" id="bAK">A</div><div class="team__v" id="bA">0</div></div>
+    </div>
+    <div class="board__status">
+      <span class="pips" id="bPips" aria-hidden="true"></span>
+    </div>
+  </section>
+
+  <div class="layout">
+    <aside>
+      <div class="panel" id="entryPanel">
+        <div class="panel__head">
+          <span class="panel__title" id="entryTitle">Race 1</span>
+          <span class="badge" id="entryBadge" hidden>Editing</span>
+        </div>
+
+        <input class="field" id="trackQ" autocomplete="off" spellcheck="false" placeholder="Track — type or click">
+        <div class="tracks" id="tracks"></div>
+
+        <div class="label">Spots <span id="spotCount">0/5</span></div>
+        <div class="spots" id="spots"></div>
+        <div class="preview" id="preview"></div>
+
+        <button class="linkbtn" id="penToggle">+ Penalty</button>
+        <div class="pens" id="pens" hidden>
+          <label class="pen"><span id="penFK">F</span> −<input class="field" id="penF" type="number" min="0" step="1" placeholder="0"></label>
+          <label class="pen"><span id="penAK">A</span> −<input class="field" id="penA" type="number" min="0" step="1" placeholder="0"></label>
+        </div>
+        <div class="err" id="err"></div>
+
+        <div class="btn-row" id="btnRow">
+          <button class="btn" id="clear">Clear</button>
+          <button class="btn" id="cancel">Done</button>
+          <button class="btn-reset" id="del">Delete race</button>
+        </div>
+        <div class="keys"><kbd>1</kbd>–<kbd>9</kbd> <kbd>0</kbd>=10th · <kbd>⌫</kbd> undo · saves on the 5th</div>
+      </div>
+
+      <div class="panel" id="donePanel" hidden>
+        <div class="done">War complete. Click a race to edit it.</div>
+      </div>
+
+      <div class="panel">
+        <div class="tags">
+          <label><span>Our tag</span><input class="field" id="fTag" maxlength="14" placeholder="Λν"></label>
+          <label><span>Opponent</span><input class="field" id="aTag" maxlength="14" placeholder="A"></label>
+        </div>
+        <div class="btn-row" style="margin-top: var(--sp-3)">
+          <button class="btn" id="copy">Copy results</button>
+          <button class="btn-reset" id="newWar">New war</button>
+        </div>
+      </div>
+    </aside>
+
+    <main>
+      <section class="card">
+        <span class="chart__title">Lead</span>
+        <div class="chart" id="cumChart"></div>
+        <span class="chart__title">Race +/−</span>
+        <div class="chart" id="barChart"></div>
+      </section>
+
+      <section class="card">
+        <div class="tbl-wrap">
+          <table class="races">
+            <thead><tr>
+              <th class="l">#</th><th class="l">Track</th><th class="l">Spots</th>
+              <th id="thF">Λν</th><th id="thA">A</th><th>+/−</th><th>Score</th><th>Lead</th>
+            </tr></thead>
+            <tbody id="tbody"></tbody>
+            <tfoot id="tfoot"></tfoot>
+          </table>
+        </div>
+      </section>
+    </main>
+  </div>
+</div>
+
+<div class="tip" id="tip" hidden></div>
+<div class="toast" id="toast"></div>
+
+<script>
+'use strict';
+
+// ── rules ────────────────────────────────────────────────────────────────────
+const POINTS = [15, 12, 10, 8, 6, 4, 3, 2, 1, 0];      // index = position - 1
+const RACE_TOTAL = POINTS.reduce((a, b) => a + b, 0);  // 61
+const N_RACES = 12;
+const TEAM = 5;
+
+// ── tracks ───────────────────────────────────────────────────────────────────
+// Codes are the ones war/lounge table bots use; aliases catch common variants.
+const CUPS = [
+  ['Mushroom', [['LC', 'Luigi Circuit'], ['MMM', 'Moo Moo Meadows'], ['MG', 'Mushroom Gorge'], ['TF', "Toad's Factory"]]],
+  ['Flower',   [['MC', 'Mario Circuit'], ['CM', 'Coconut Mall'], ['DKSC', 'DK Summit', ['dks', 'dk summit']], ['WGM', "Wario's Gold Mine"]]],
+  ['Star',     [['DC', 'Daisy Circuit'], ['KC', 'Koopa Cape'], ['MT', 'Maple Treeway'], ['GV', 'Grumble Volcano']]],
+  ['Special',  [['DDR', 'Dry Dry Ruins'], ['MH', 'Moonview Highway'], ['BC', "Bowser's Castle", ['bcwii', 'wbc']], ['RR', 'Rainbow Road']]],
+  ['Shell',    [['rPB', 'GCN Peach Beach', ['pb']], ['rYF', 'DS Yoshi Falls', ['yf']], ['rGV2', 'SNES Ghost Valley 2', ['gv2']], ['rMR', 'N64 Mario Raceway', ['mr']]]],
+  ['Banana',   [['rSL', 'N64 Sherbet Land', ['sl']], ['rSGB', 'GBA Shy Guy Beach', ['sgb']], ['rDS', 'DS Delfino Square', ['ds', 'delfino']], ['rWS', 'GCN Waluigi Stadium', ['ws']]]],
+  ['Leaf',     [['rDH', 'DS Desert Hills', ['dh']], ['rBC3', 'GBA Bowser Castle 3', ['bc3']], ['rDKJP', "N64 DK's Jungle Parkway", ['dkjp', 'jp']], ['rMC', 'GCN Mario Circuit', ['gcn mc']]]],
+  ['Lightning',[['rMC3', 'SNES Mario Circuit 3', ['mc3']], ['rPG', 'DS Peach Gardens', ['pg']], ['rDKM', 'GCN DK Mountain', ['dkm']], ['rBC', "N64 Bowser's Castle", ['n64 bc']]]],
+];
+const norm = s => s.toLowerCase().replace(/['’.]/g, '').replace(/\s+/g, ' ').trim();
+const TRACKS = [];
+CUPS.forEach(([cup, list]) => list.forEach(([code, name, aliases]) => {
+  TRACKS.push({ code, name, cup, keys: [norm(code), ...(aliases || []).map(norm)], n: norm(name) });
+}));
+const TRACK = Object.fromEntries(TRACKS.map(t => [t.code, t]));
+
+function matchTracks(q) {
+  q = norm(q);
+  if (!q) return [];
+  const exact = TRACKS.filter(t => t.keys.includes(q));
+  const rest = TRACKS.filter(t => !exact.includes(t) &&
+    (t.keys.some(k => k.startsWith(q)) || t.n.includes(q) || t.n.split(' ').some(w => w.startsWith(q))));
+  return exact.concat(rest);
+}
+// Enter takes the best match that has NOT been played yet, if there is one.
+function enterTarget(matches, used) {
+  return matches.find(t => !used.has(t.code)) || matches[0] || null;
+}
+
+// ── state ────────────────────────────────────────────────────────────────────
+// A race is { track, pos: [5 spots], penF, penA } -- penalties are points taken
+// OFF that team in that race, stored as positive numbers.
+const KEY = 'mkw-war-tracker:v1';
+const blank = () => ({ us: '', them: '', races: Array(N_RACES).fill(null) });
+let state = load();
+let sel = firstEmpty();                       // slot being entered/edited, -1 when war complete
+let draft = newDraft();
+let hoverI = -1;
+let lastSaved = null;                         // { slot, order } of the last auto-saved NEW race, for Backspace
+
+function newDraft(r) {
+  return r ? { track: r.track, pos: [...r.pos], penF: r.penF || 0, penA: r.penA || 0, showPen: !!(r.penF || r.penA), advance: false }
+           : { track: null, pos: [], penF: 0, penA: 0, showPen: false, advance: true };
+}
+function load() {
+  try {
+    const s = JSON.parse(localStorage.getItem(KEY));
+    if (s && Array.isArray(s.races) && s.races.length === N_RACES) {
+      if (s.us === 'Us') s.us = '';             // the old defaults, now F / A
+      if (s.them === 'Them') s.them = '';
+      return s;
+    }
+  } catch (e) {}
+  return blank();
+}
+function persist() { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {} }
+function firstEmpty() { return state.races.findIndex(r => !r); }
+const usedTracks = () => new Set(state.races.filter((r, i) => r && r.track && i !== sel).map(r => r.track));
+
+// ── maths ────────────────────────────────────────────────────────────────────
+function raceScore(pos, penF = 0, penA = 0) {
+  const base = pos.reduce((a, p) => a + POINTS[p - 1], 0);
+  const f = base - penF, a = RACE_TOTAL - base - penA;
+  return { f, a, diff: f - a, penF, penA };
+}
+function rows() {
+  let cf = 0, ca = 0;
+  return state.races.map((r, i) => {
+    if (!r) return { i, played: false, cf, ca, cd: cf - ca };
+    const s = raceScore(r.pos, r.penF || 0, r.penA || 0);
+    cf += s.f; ca += s.a;
+    return { i, played: true, r, ...s, cf, ca, cd: cf - ca };
+  });
+}
+
+// ── formatting ───────────────────────────────────────────────────────────────
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const signed = v => v > 0 ? `+${v}` : v < 0 ? `−${-v}` : '0';
+const toneCls = v => v > 0 ? 'is-gain' : v < 0 ? 'is-loss' : 'is-level';
+const glyph = v => v > 0 ? '▲ ' : v < 0 ? '▼ ' : '';
+const ordinal = n => n + (n === 1 ? 'st' : n === 2 ? 'nd' : n === 3 ? 'rd' : 'th');
+const F = () => state.us || "Λν";   // capital lambda + lowercase nu
+const A = () => state.them || 'A';
+const penTag = p => p ? `<span class="pen-tag">−${p}</span>` : '';
+
+// ── render ───────────────────────────────────────────────────────────────────
+function render() {
+  const rs = rows();
+  renderBoard(rs);
+  renderEntry();
+  renderTable(rs);
+  renderCharts(rs);
+  $('bFK').textContent = $('thF').textContent = $('penFK').textContent = F();
+  $('bAK').textContent = $('thA').textContent = $('penAK').textContent = A();
+  const last = rs[N_RACES - 1];
+  document.title = rs.some(r => r.played) ? `${F()} ${last.cf}–${last.ca} ${A()} · War Tracker` : 'War Tracker';
+}
+
+function renderBoard(rs) {
+  const last = rs[N_RACES - 1];
+  const n = rs.filter(r => r.played).length, d = last.cd;
+  $('bF').textContent = last.cf;
+  $('bA').textContent = last.ca;
+  $('bLead').textContent = glyph(d) + signed(d);
+  $('bLead').className = 'lead__v ' + toneCls(d);
+  $("bLeadK").innerHTML = d > 0 ? `<span class="tag">${esc(F())}</span> lead` : d < 0 ? `<span class="tag">${esc(A())}</span> lead` : (n ? "Level" : "Lead");
+  $('board').dataset.tone = d > 0 ? 'good' : d < 0 ? 'bad' : '';
+  $('bPips').innerHTML = rs.map(r =>
+    `<i class="${r.played ? (r.diff > 0 ? 'pos' : r.diff < 0 ? 'neg' : 'lvl') : (r.i === sel ? 'cur' : '')}"></i>`).join('');
+}
+
+function renderEntry() {
+  const done = sel < 0;
+  $('entryPanel').hidden = done;
+  $('donePanel').hidden = !done;
+  if (done) return;
+  const editing = !!state.races[sel];
+  const dirty = draft.pos.length || draft.track || draft.penF || draft.penA;
+  $('entryTitle').textContent = `Race ${sel + 1}`;
+  $('entryBadge').hidden = !editing;
+  $('cancel').hidden = $('del').hidden = !editing;
+  $('clear').hidden = editing || !dirty;
+  $('btnRow').hidden = $('clear').hidden && !editing;
+  $('pens').hidden = !draft.showPen;
+  $('penToggle').hidden = draft.showPen;
+  renderTracks();
+  renderSpots();
+}
+
+function renderTracks() {
+  const q = $('trackQ').value;
+  const matches = matchTracks(q), used = usedTracks();
+  const first = q.trim() ? enterTarget(matches, used) : null;
+  $('tracks').innerHTML = TRACKS.map(t => {
+    const cls = ['chip'];
+    if (draft.track === t.code) cls.push('is-on');
+    if (used.has(t.code)) cls.push('is-played');
+    if (q.trim() && !matches.includes(t)) cls.push('is-dim');
+    if (first === t) cls.push('is-first');
+    return `<button class="${cls.join(' ')}" data-track="${t.code}" title="${esc(t.name)}" tabindex="-1">${t.code}</button>`;
+  }).join('');
+}
+
+function renderSpots() {
+  let html = '';
+  for (let p = 1; p <= 10; p++)
+    html += `<button class="chip spot${draft.pos.includes(p) ? ' is-on' : ''}" data-pos="${p}" tabindex="-1"><b>${ordinal(p)}</b><small>${POINTS[p - 1]}</small></button>`;
+  $('spots').innerHTML = html;
+  $('spotCount').textContent = `${draft.pos.length}/${TEAM}`;
+  const t = draft.track && TRACK[draft.track];
+  const name = t ? esc(t.name) : '';
+  if (draft.pos.length === TEAM) {
+    const s = raceScore(draft.pos, draft.penF, draft.penA);
+    $('preview').innerHTML = `<span>${esc(F())} <b>${s.f}</b>${penTag(s.penF)} · ${esc(A())} <b>${s.a}</b>${penTag(s.penA)}</span>` +
+                             `<b class="${toneCls(s.diff)}">${signed(s.diff)}</b>`;
+  } else {
+    const hint = state.races[sel] && draft.pos.length ? `pick a 5th spot to save` : "";
+    $("preview").innerHTML = `<span style="font-family:var(--font-ui)">${name || ""}</span><span style="font-family:var(--font-ui);color:var(--muted)">${hint}</span>`;
+  }
+  $("preview").hidden = draft.pos.length < TEAM && !name && !(state.races[sel] && draft.pos.length);
+  if (draft.pos.length === TEAM && name) $('preview').title = t.name; else $('preview').removeAttribute('title');
+}
+
+function renderTable(rs) {
+  $('tbody').innerHTML = rs.map(r => {
+    const cls = `${r.i === sel ? 'is-sel' : ''} ${r.played ? '' : 'is-empty'}`;
+    if (!r.played) return `<tr class="${cls}" data-i="${r.i}"><td class="l num">${r.i + 1}</td><td class="l" colspan="7"></td></tr>`;
+    const t = r.r.track && TRACK[r.r.track];
+    return `<tr class="${cls}" data-i="${r.i}">
+      <td class="l num">${r.i + 1}</td>
+      <td class="l trk" title="${t ? esc(t.name) : ''}">${t ? t.code : '—'}</td>
+      <td class="l">${[...r.r.pos].sort((a, b) => a - b).join(' ')}</td>
+      <td>${r.f}${penTag(r.penF)}</td><td>${r.a}${penTag(r.penA)}</td>
+      <td class="${toneCls(r.diff)}">${signed(r.diff)}</td>
+      <td>${r.cf}–${r.ca}</td>
+      <td class="lead ${toneCls(r.cd)}">${signed(r.cd)}</td></tr>`;
+  }).join('');
+  const last = rs[N_RACES - 1];
+  $('tfoot').innerHTML = `<tr><td class="l" colspan="3">Total</td><td>${last.cf}</td><td>${last.ca}</td>
+    <td></td><td></td><td class="${toneCls(last.cd)}">${signed(last.cd)}</td></tr>`;
+}
+
+// ── charts ───────────────────────────────────────────────────────────────────
+// Two panels on ONE shared x-axis (races 1-12, fixed) with separate y-axes --
+// never one dual-axis chart. The lead and a single race's swing are the same
+// unit but an order of magnitude apart, so on one axis the bars would vanish.
+function geom(el, H, top, bottom) {
+  const W = Math.max(300, Math.round(el.clientWidth));
+  const l = 40, r = 46, pw = W - l - r, step = pw / N_RACES;
+  return { W, H, l, r, top, bottom, pw, ph: H - top - bottom, step, cx: i => l + (i + 0.5) * step };
+}
+function cols(g) {
+  let s = '';
+  for (let i = 0; i < N_RACES; i++)
+    s += `<rect class="col${i === sel ? ' is-sel' : ''}${i === hoverI ? ' is-hover' : ''}" data-col="${i}" x="${g.l + i * g.step}" y="${g.top}" width="${g.step}" height="${g.ph}"/>`;
+  return s;
+}
+function hits(g) {
+  let s = '';
+  for (let i = 0; i < N_RACES; i++)
+    s += `<rect class="hit" data-i="${i}" x="${g.l + i * g.step}" y="0" width="${g.step}" height="${g.H}"/>`;
+  return s;
+}
+function niceDomain(maxAbs, floor) {
+  maxAbs = Math.max(floor, maxAbs);
+  const st = [10, 20, 25, 50, 75, 100, 150, 200, 250, 300, 400, 500].find(s => maxAbs <= 2 * s) || 500;
+  return { D: Math.ceil(maxAbs / st) * st, st };
+}
+
+function renderCharts(rs) { drawLead(rs); drawBars(rs); }
+
+function drawLead(rs) {
+  const el = $('cumChart');
+  const g = geom(el, 210, 12, 20);
+  const played = rs.filter(r => r.played);
+  const { D, st } = niceDomain(Math.max(0, ...played.map(r => Math.abs(r.cd))), 20);
+  const y = v => g.top + (D - v) / (2 * D) * g.ph, y0 = y(0);
+
+  let s = `<svg viewBox="0 0 ${g.W} ${g.H}" width="${g.W}" height="${g.H}" role="img" aria-label="Lead after each race">` + cols(g);
+  for (let v = -D; v <= D; v += st) {
+    if (v) s += `<line class="grid" x1="${g.l}" x2="${g.W - g.r}" y1="${y(v)}" y2="${y(v)}"/>`;
+    s += `<text class="tick" x="${g.l - 8}" y="${y(v) + 3.5}" text-anchor="end">${signed(v)}</text>`;
+  }
+  s += `<text class="zone" x="${g.l + 6}" y="${g.top + 11}">▲ ${esc(F())} AHEAD</text>`;
+  s += `<text class="zone" x="${g.l + 6}" y="${g.top + g.ph - 5}">▼ ${esc(A())} AHEAD</text>`;
+  if (played.length) {
+    const pts = [{ x: g.l, y: y0, v: 0 }].concat(played.map(r => ({ x: g.cx(r.i), y: y(r.cd), v: r.cd, i: r.i })));
+    const line = pts.map((p, k) => `${k ? 'L' : 'M'}${p.x.toFixed(1)},${p.y.toFixed(1)}`).join('');
+    const lastP = pts[pts.length - 1];
+    const area = `${line}L${lastP.x.toFixed(1)},${y0}L${g.l},${y0}Z`;
+    s += `<defs><clipPath id="cAbove"><rect x="0" y="0" width="${g.W}" height="${y0}"/></clipPath>` +
+         `<clipPath id="cBelow"><rect x="0" y="${y0}" width="${g.W}" height="${g.H - y0}"/></clipPath></defs>`;
+    s += `<path class="area-pos" d="${area}" clip-path="url(#cAbove)"/><path class="area-neg" d="${area}" clip-path="url(#cBelow)"/>`;
+    s += `<line class="zero" x1="${g.l}" x2="${g.W - g.r}" y1="${y0}" y2="${y0}"/><path class="line" d="${line}"/>`;
+    pts.slice(1).forEach(p => {
+      s += `<circle class="dot ${p.v > 0 ? 'pos' : p.v < 0 ? 'neg' : 'lvl'}" cx="${p.x}" cy="${p.y}" r="4.5"/>`;
+    });
+    s += `<text class="endlab" x="${lastP.x + 10}" y="${lastP.y + 4}">${signed(lastP.v)}</text>`;
+  } else {
+    s += `<line class="zero" x1="${g.l}" x2="${g.W - g.r}" y1="${y0}" y2="${y0}"/>`;
+  }
+  for (let i = 0; i < N_RACES; i++)
+    s += `<text class="${i === sel ? 'tick-sel' : 'tick'}" x="${g.cx(i)}" y="${g.H - 4}" text-anchor="middle">${i + 1}</text>`;
+  el.innerHTML = s + hits(g) + '</svg>';
+}
+
+// A bar with its far end rounded and its baseline end square.
+function barPath(x, w, y0, y1, r) {
+  r = Math.min(r, w / 2, Math.abs(y1 - y0));
+  const e = y1 < y0 ? r : -r;
+  return `M${x},${y0}L${x},${y1 + e}Q${x},${y1} ${x + r},${y1}L${x + w - r},${y1}Q${x + w},${y1} ${x + w},${y1 + e}L${x + w},${y0}Z`;
+}
+
+function drawBars(rs) {
+  const el = $('barChart');
+  const g = geom(el, 150, 10, 32);
+  const played = rs.filter(r => r.played);
+  // ±41 is the most a clean race can swing; penalties can push past it.
+  const D = Math.max(44, ...played.map(r => Math.abs(r.diff) + 4));
+  const st = D > 88 ? 40 : 20;
+  const y = v => g.top + (D - v) / (2 * D) * g.ph, y0 = y(0);
+  const w = Math.min(28, g.step * 0.56);
+  let s = `<svg viewBox="0 0 ${g.W} ${g.H}" width="${g.W}" height="${g.H}" role="img" aria-label="Swing in each race">` + cols(g);
+  for (let v = st; v < D; v += st) [v, -v].forEach(u => {
+    s += `<line class="grid" x1="${g.l}" x2="${g.W - g.r}" y1="${y(u)}" y2="${y(u)}"/>`;
+    s += `<text class="tick" x="${g.l - 8}" y="${y(u) + 3.5}" text-anchor="end">${signed(u)}</text>`;
+  });
+  s += `<text class="tick" x="${g.l - 8}" y="${y0 + 3.5}" text-anchor="end">0</text>`;
+  played.forEach(r => {
+    if (r.diff) s += `<path class="${r.diff > 0 ? 'pos' : 'neg'}" d="${barPath(g.cx(r.i) - w / 2, w, y0, y(r.diff), 4)}"/>`;
+    if (r.penF || r.penA) s += `<text class="penmark" x="${g.cx(r.i)}" y="${r.diff >= 0 ? y(r.diff) - 4 : y(r.diff) + 11}" text-anchor="middle">P</text>`;
+  });
+  s += `<line class="zero" x1="${g.l}" x2="${g.W - g.r}" y1="${y0}" y2="${y0}"/>`;
+  for (let i = 0; i < N_RACES; i++) {
+    const r = rs[i];
+    s += `<text class="${i === sel ? 'tick-sel' : 'tick'}" x="${g.cx(i)}" y="${g.H - 17}" text-anchor="middle">${i + 1}</text>`;
+    if (r.played && r.r.track)
+      s += `<text class="tick" x="${g.cx(i)}" y="${g.H - 4}" text-anchor="middle" style="font-size:${g.step < 46 ? 8 : 9.5}px">${r.r.track}</text>`;
+  }
+  el.innerHTML = s + hits(g) + '</svg>';
+}
+
+// Hover is shared across both charts: one column lights up in each.
+function setHover(i, ev) {
+  if (i !== hoverI) {
+    hoverI = i;
+    document.querySelectorAll('svg .col').forEach(c => c.classList.toggle('is-hover', +c.dataset.col === i));
+  }
+  const tip = $('tip');
+  if (i < 0) { tip.hidden = true; return; }
+  const r = rows()[i];
+  if (r.played) {
+    const t = r.r.track && TRACK[r.r.track];
+    const pens = [r.penF ? `${esc(F())} −${r.penF}` : '', r.penA ? `${esc(A())} −${r.penA}` : ''].filter(Boolean).join(', ');
+    tip.innerHTML = `<div class="tip__h">Race ${i + 1}${t ? ' · ' + esc(t.name) : ''}</div>
+      <div class="tip__r"><span>${esc(F())}–${esc(A())}</span><b>${r.f}–${r.a}</b></div>
+      ${pens ? `<div class="tip__r"><span>Penalty</span><b class="is-loss">${pens}</b></div>` : ''}
+      <div class="tip__r"><span>Race</span><b class="${toneCls(r.diff)}">${signed(r.diff)}</b></div>
+      <div class="tip__r"><span>Lead</span><b class="${toneCls(r.cd)}">${signed(r.cd)}</b></div>`;
+  } else {
+    tip.innerHTML = `<div class="tip__h">Race ${i + 1}</div>`;
+  }
+  tip.hidden = false;
+  const pad = 14, tw = tip.offsetWidth, th = tip.offsetHeight;
+  let x = ev.clientX + pad, yy = ev.clientY + pad;
+  if (x + tw > window.innerWidth - 8) x = ev.clientX - tw - pad;
+  if (yy + th > window.innerHeight - 8) yy = ev.clientY - th - pad;
+  tip.style.left = x + 'px'; tip.style.top = yy + 'px';
+}
+['cumChart', 'barChart'].forEach(id => {
+  const el = $(id);
+  el.addEventListener('mousemove', e => { const h = e.target.closest('.hit'); setHover(h ? +h.dataset.i : -1, e); });
+  el.addEventListener('mouseleave', () => setHover(-1));
+  el.addEventListener('click', e => { const h = e.target.closest('.hit'); if (h) pickSlot(+h.dataset.i); });
+});
+if ('ResizeObserver' in window) {
+  let raf = 0;
+  new ResizeObserver(() => { cancelAnimationFrame(raf); raf = requestAnimationFrame(() => renderCharts(rows())); })
+    .observe($('cumChart'));
+}
+
+// ── actions ──────────────────────────────────────────────────────────────────
+function loadDraft() {
+  draft = newDraft(sel >= 0 ? state.races[sel] : null);
+  $('trackQ').value = '';
+  $('penF').value = draft.penF || '';
+  $('penA').value = draft.penA || '';
+  $('err').textContent = '';
+}
+function selectSlot(i) {
+  sel = i;
+  loadDraft();
+  render();
+  if (sel >= 0) $('trackQ').focus();
+}
+// Selecting a race by CLICKING it is a deliberate edit, so it forgets the undo.
+function pickSlot(i) { lastSaved = null; selectSlot(i); }
+
+// draft.pos is kept in the ORDER THE SPOTS WERE ADDED, so Backspace undoes the
+// last key press. It is displayed and saved sorted.
+function toggleSpot(p) {
+  if (sel < 0) return;
+  $('err').textContent = '';
+  if (draft.pos.includes(p)) draft.pos = draft.pos.filter(x => x !== p);
+  else if (draft.pos.length < TEAM) draft.pos = [...draft.pos, p];
+  else { $('err').textContent = `Already ${TEAM} spots — press one again to drop it.`; return; }
+  afterChange();
+}
+function popSpot() {
+  if (sel >= 0 && draft.pos.length) {
+    draft.pos = draft.pos.slice(0, -1);
+    $('err').textContent = '';
+    renderEntry();
+    return;
+  }
+  // Nothing entered yet: Backspace REOPENS the race that was just auto-saved,
+  // minus its last spot. That is the undo for a mistyped 5th key. The saved
+  // race is left as it was until a new 5th spot replaces it.
+  const fresh = sel < 0 || (!draft.track && !draft.penF && !draft.penA);
+  if (!fresh || !lastSaved || !state.races[lastSaved.slot] || lastSaved.slot === sel) return;
+  const { slot, order } = lastSaved;
+  lastSaved = null;
+  sel = slot;
+  loadDraft();
+  draft.pos = order.slice(0, -1);
+  draft.advance = true;
+  render();
+  toast(`Race ${slot + 1} reopened`);
+}
+const digitSpot = e => (!e.ctrlKey && !e.metaKey && !e.altKey && /^[0-9]$/.test(e.key))
+  ? (e.key === '0' ? 10 : +e.key) : 0;
+
+// THE SAVE RULE: a race with 5 spots is saved, immediately, on every change.
+// A NEW race then moves on to the next one. A race opened for EDITING stays
+// open, so a track or penalty can still be changed, until Done / Enter.
+function afterChange() {
+  if (sel < 0 || draft.pos.length !== TEAM) { renderEntry(); return; }
+  const slot = sel, existed = !!state.races[slot];
+  const race = { track: draft.track, pos: [...draft.pos].sort((a, b) => a - b) };
+  if (draft.penF) race.penF = draft.penF;
+  if (draft.penA) race.penA = draft.penA;
+  state.races[slot] = race;
+  persist();
+  toast(`Race ${slot + 1} ${existed ? 'updated' : 'saved'} · ${signed(raceScore(race.pos, race.penF, race.penA).diff)}`);
+  if (draft.advance) {
+    lastSaved = { slot, order: [...draft.pos] };
+    selectSlot(firstEmpty());
+  } else {
+    render();
+  }
+}
+function cancelEdit() { if (sel >= 0 && state.races[sel]) pickSlot(firstEmpty()); }
+
+// Track box: Enter picks the highlighted match. A NUMBER typed into the empty
+// box is a spot instead -- it is what you press straight after a save.
+$('trackQ').addEventListener('input', renderTracks);
+$('trackQ').addEventListener('keydown', e => {
+  const p = digitSpot(e);
+  if (p && !$('trackQ').value.trim()) { e.preventDefault(); $('trackQ').blur(); toggleSpot(p); return; }
+  if (e.key === 'Backspace' && !$('trackQ').value) { e.preventDefault(); $('trackQ').blur(); popSpot(); return; }
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    const q = $('trackQ').value.trim();
+    if (q) {
+      const t = enterTarget(matchTracks(q), usedTracks());
+      if (!t) return;
+      draft.track = t.code;
+      $('trackQ').value = '';
+      afterChange();
+    }
+    $('trackQ').blur();
+  } else if (e.key === 'Escape') { $('trackQ').value = ''; $('trackQ').blur(); renderTracks(); cancelEdit(); }
+});
+$('tracks').addEventListener('click', e => {
+  const b = e.target.closest('[data-track]');
+  if (!b) return;
+  draft.track = draft.track === b.dataset.track ? null : b.dataset.track;
+  $('trackQ').value = '';
+  afterChange();
+});
+$('spots').addEventListener('click', e => { const b = e.target.closest('[data-pos]'); if (b) toggleSpot(+b.dataset.pos); });
+
+$('penToggle').addEventListener('click', () => { draft.showPen = true; renderEntry(); $('penF').focus(); });
+['penF', 'penA'].forEach(id => {
+  $(id).addEventListener('input', () => { draft[id] = Math.abs(parseInt($(id).value, 10)) || 0; afterChange(); });
+  // Enter leaves the box: Done when editing, back to the number keys otherwise.
+  $(id).addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); $(id).blur(); cancelEdit(); }
+    else if (e.key === 'Escape') { $(id).blur(); }
+  });
+});
+
+// Number keys work anywhere that isn't a text box: 1-9 and 0 (10th) toggle
+// spots, Backspace drops the last (or reopens the race just saved), Enter or
+// Esc finishes an edit.
+document.addEventListener('keydown', e => {
+  // Keyed off the event's TARGET, not the focused element: the track box blurs
+  // itself mid-keypress, and the same key must not be handled a second time here.
+  const a = e.target;
+  if (a && a.tagName === 'INPUT') return;
+  if (e.ctrlKey || e.metaKey || e.altKey) return;
+  if (e.key === 'Backspace') { e.preventDefault(); popSpot(); return; }   // also works once the war is complete
+  if (sel < 0) return;
+  const p = digitSpot(e);
+  if (p) { e.preventDefault(); toggleSpot(p); }
+  else if ((e.key === 'Enter' && !(a && a.tagName === 'BUTTON')) || e.key === 'Escape') { e.preventDefault(); cancelEdit(); }
+});
+
+$('clear').addEventListener('click', () => { loadDraft(); render(); $('trackQ').focus(); });
+$('cancel').addEventListener('click', cancelEdit);
+$('del').addEventListener('click', () => {
+  if (sel < 0 || !state.races[sel] || !confirm(`Delete race ${sel + 1}?`)) return;
+  state.races[sel] = null;
+  persist();
+  toast(`Race ${sel + 1} deleted`);
+  selectSlot(sel);
+});
+$('tbody').addEventListener('click', e => { const tr = e.target.closest('tr[data-i]'); if (tr) pickSlot(+tr.dataset.i); });
+
+[['fTag', 'us'], ['aTag', 'them']].forEach(([id, k]) => {
+  $(id).addEventListener('input', () => { state[k] = $(id).value.trim(); persist(); render(); });
+});
+
+$('newWar').addEventListener('click', () => {
+  if (state.races.some(Boolean) && !confirm('Start a new war? This clears every race and resets both tags.')) return;
+  // A new war resets BOTH tags to their defaults (Λν vs A), not just the races.
+  state = blank();
+  $('fTag').value = '';
+  $('aTag').value = '';
+  persist();
+  selectSlot(0);
+});
+
+function resultsText() {
+  const rs = rows(), last = rs[N_RACES - 1];
+  const lines = [`${F()} ${last.cf} – ${last.ca} ${A()}  (${signed(last.cd)})`, ''];
+  rs.forEach(r => {
+    if (!r.played) return;
+    const pens = [r.penF ? `${F()} -${r.penF}` : '', r.penA ? `${A()} -${r.penA}` : ''].filter(Boolean).join(', ');
+    lines.push(`R${String(r.i + 1).padEnd(3)}${(r.r.track || '-').padEnd(6)}${r.r.pos.join(' ').padEnd(15)}` +
+               `${(r.f + '-' + r.a).padEnd(7)}${signed(r.diff).padStart(4)}  ${(r.cf + '-' + r.ca).padEnd(8)}${signed(r.cd).padStart(5)}` +
+               (pens ? `  pen ${pens}` : ''));
+  });
+  return '```\n' + lines.join('\n').replace(/−/g, '-') + '\n```';
+}
+$('copy').addEventListener('click', async () => {
+  const text = resultsText();
+  try { await navigator.clipboard.writeText(text); toast('Copied'); return; } catch (e) {}
+  const ta = document.createElement('textarea');
+  ta.value = text; document.body.appendChild(ta); ta.select();
+  try { document.execCommand('copy'); toast('Copied'); } catch (e) { toast('Copy failed'); }
+  ta.remove();
+});
+
+let toastT = 0;
+function toast(msg) {
+  const t = $('toast');
+  t.textContent = msg; t.classList.add('is-on');
+  clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('is-on'), 1500);
+}
+
+// ── theme ────────────────────────────────────────────────────────────────────
+function paintThemeSeg() {
+  const cur = document.documentElement.dataset.theme || 'auto';
+  document.querySelectorAll('#theme .seg__b').forEach(b => b.classList.toggle('is-on', b.dataset.t === cur));
+}
+$('theme').addEventListener('click', e => {
+  const b = e.target.closest('[data-t]');
+  if (!b) return;
+  if (b.dataset.t === 'auto') delete document.documentElement.dataset.theme;
+  else document.documentElement.dataset.theme = b.dataset.t;
+  try { localStorage.setItem('mkw-war-tracker:theme', b.dataset.t); } catch (e) {}
+  paintThemeSeg();
+});
+
+// ── boot ─────────────────────────────────────────────────────────────────────
+$('fTag').value = state.us;
+$('aTag').value = state.them;
+paintThemeSeg();
+loadDraft();
+render();
+if (sel >= 0) $('trackQ').focus();
+</script>
+</body>
+</html>
