@@ -867,7 +867,10 @@ $('newWar').addEventListener('click', () => {
 
 function scoreText() {
   const rs = rows(), last = rs[N_RACES - 1];
-  return `${F()} ${last.cf} - ${last.ca} ${A()} (${rs.filter(r => r.played).length}/${N_RACES})`;
+  const n = rs.filter(r => r.played).length, diff = signed(last.cd).replace('−', '-');
+  return n === N_RACES
+    ? `${F()} ${last.cf} - ${last.ca} ${A()} (${diff})`
+    : `${F()} ${diff} (${last.cf} - ${last.ca}, ${n}/${N_RACES})`;
 }
 function resultsText() {
   const rs = rows(), last = rs[N_RACES - 1];
