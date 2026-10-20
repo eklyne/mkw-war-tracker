@@ -336,6 +336,10 @@ svg .penmark { fill: var(--bad-ink); font-size: 9px; font-weight: 700; font-fami
           <button class="btn" id="copy">Copy score</button>
           <button class="btn-reset" id="newWar">New war</button>
         </div>
+        <div class="btn-row">
+          <button class="btn" id="share" title="Copy a link (or key) that opens this war">Share war</button>
+          <button class="btn" id="importWar" title="Open a war from a pasted link or key">Import war</button>
+        </div>
       </div>
     </aside>
 
@@ -379,7 +383,7 @@ const TEAM = 5;
 // Codes are the ones war/lounge table bots use; aliases catch common variants.
 const CUPS = [
   ['Mushroom', [['LC', 'Luigi Circuit'], ['MMM', 'Moo Moo Meadows'], ['MG', 'Mushroom Gorge'], ['TF', "Toad's Factory"]]],
-  ['Flower',   [['MC', 'Mario Circuit'], ['CM', 'Coconut Mall'], ['DKSC', 'DK Summit', ['dks', 'dk summit']], ['WGM', "Wario's Gold Mine"]]],
+  ['Flower',   [['MC', 'Mario Circuit'], ['CM', 'Coconut Mall'], ['DKS', 'DK Summit', ['dksc', 'dk summit']], ['WGM', "Wario's Gold Mine"]]],
   ['Star',     [['DC', 'Daisy Circuit'], ['KC', 'Koopa Cape'], ['MT', 'Maple Treeway'], ['GV', 'Grumble Volcano']]],
   ['Special',  [['DDR', 'Dry Dry Ruins'], ['MH', 'Moonview Highway'], ['BC', "Bowser's Castle", ['bcwii', 'wbc']], ['RR', 'Rainbow Road']]],
   ['Shell',    [['rPB', 'GCN Peach Beach', ['pb']], ['rYF', 'DS Yoshi Falls', ['yf']], ['rGV2', 'SNES Ghost Valley 2', ['gv2']], ['rMR', 'N64 Mario Raceway', ['mr']]]],
@@ -440,6 +444,7 @@ function load() {
     if (s && Array.isArray(s.races) && s.races.length === N_RACES) {
       if (s.us === 'Us') s.us = '';             // the old defaults, now F / A
       if (s.them === 'Them') s.them = '';
+      s.races.forEach(r => { if (r && r.track === 'DKSC') r.track = 'DKS'; });   // renamed code
       return s;
     }
   } catch (e) {}
@@ -893,6 +898,123 @@ $('copy').addEventListener('click', async () => {
   ta.remove();
 });
 
+// ── share key ────────────────────────────────────────────────────────────────
+// A whole war packs into ~40 bytes (~55 base64url chars):
+//   [version] [played+penalty flags: 24 bits] [us: len,utf8] [them: len,utf8]
+//   per played race: 16 bits = track(6, 0 = none, else TRACKS index + 1) | spots(10-bit mask)
+//   per penalised race: penF, penA as varints   [checksum]
+// The track index is part of the format: if TRACKS is ever reordered or extended,
+// bump WAR_VERSION so old keys are rejected instead of loading the wrong tracks.
+const WAR_VERSION = 1;
+const checksum = bytes => bytes.reduce((c, b) => (c * 31 + b) & 255, 0);
+
+function encodeWar(w) {
+  const enc = new TextEncoder(), out = [WAR_VERSION];
+  let played = 0, pens = 0;
+  w.races.forEach((r, i) => { if (r) { played |= 1 << i; if (r.penF || r.penA) pens |= 1 << i; } });
+  const flags = played | (pens << N_RACES);
+  out.push(flags >> 16 & 255, flags >> 8 & 255, flags & 255);
+  [w.us, w.them].forEach(s => { const b = enc.encode(s || ''); out.push(b.length, ...b); });
+  const varint = n => { while (n > 127) { out.push(n & 127 | 128); n = Math.floor(n / 128); } out.push(n); };
+  w.races.forEach(r => {
+    if (!r) return;
+    const t = r.track ? TRACKS.findIndex(x => x.code === r.track) + 1 : 0;
+    const mask = r.pos.reduce((m, p) => m | 1 << (p - 1), 0);
+    const v = t << 10 | mask;
+    out.push(v >> 8, v & 255);
+  });
+  w.races.forEach(r => { if (r && (r.penF || r.penA)) { varint(r.penF || 0); varint(r.penA || 0); } });
+  out.push(checksum(out));
+  return btoa(String.fromCharCode(...out)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+// Returns a war state, or throws an Error whose message is safe to show.
+function decodeWar(key) {
+  let bytes;
+  try {
+    const b64 = key.replace(/-/g, '+').replace(/_/g, '/');
+    bytes = Uint8Array.from(atob(b64 + '='.repeat((4 - b64.length % 4) % 4)), c => c.charCodeAt(0));
+  } catch (e) { throw new Error('That is not a war key.'); }
+  if (bytes.length < 6 || checksum(bytes.slice(0, -1)) !== bytes[bytes.length - 1]) throw new Error('That key is damaged or incomplete.');
+  if (bytes[0] !== WAR_VERSION) throw new Error('That key is from a different version of the tracker.');
+  const end = bytes.length - 1;
+  let p = 1;
+  const need = n => { if (p + n > end) throw new Error('That key is damaged or incomplete.'); };
+  const u8 = () => { need(1); return bytes[p++]; };
+  const varint = () => { let n = 0, m = 1, b; do { b = u8(); n += (b & 127) * m; m *= 128; } while (b & 128 && m < 2 ** 28); return n; };
+  const flags = u8() << 16 | u8() << 8 | u8();
+  const dec = new TextDecoder();
+  const name = () => { const n = u8(); need(n); const s = dec.decode(bytes.slice(p, p + n)); p += n; return s; };
+  const w = blank();
+  w.us = name().slice(0, 14);
+  w.them = name().slice(0, 14);
+  for (let i = 0; i < N_RACES; i++) {
+    if (!(flags >> i & 1)) continue;
+    const v = u8() << 8 | u8(), t = v >> 10, mask = v & 1023;
+    const pos = [];
+    for (let k = 0; k < 10; k++) if (mask >> k & 1) pos.push(k + 1);
+    if (pos.length !== TEAM || t > TRACKS.length) throw new Error('That key holds an invalid race.');
+    w.races[i] = { track: t ? TRACKS[t - 1].code : null, pos };
+  }
+  for (let i = 0; i < N_RACES; i++) {
+    if (!(flags >> (N_RACES + i) & 1) || !w.races[i]) continue;
+    const f = varint(), a = varint();
+    if (f) w.races[i].penF = f;
+    if (a) w.races[i].penA = a;
+  }
+  return w;
+}
+
+// Accepts a bare key or a whole link containing #w=<key>.
+function keyFrom(text) {
+  const m = /[#?&]w=([A-Za-z0-9_-]+)/.exec(text);
+  return m ? m[1] : text.trim();
+}
+function importWar(text) {
+  let w;
+  try { w = decodeWar(keyFrom(text)); } catch (e) { toast(e.message); return false; }
+  if (state.races.some(Boolean) && !confirm('Open the shared war? This replaces the war you have now.')) return false;
+  state = w;
+  persist();
+  lastSaved = null;
+  sel = firstEmpty();
+  $('fTag').value = state.us;
+  $('aTag').value = state.them;
+  loadDraft();
+  render();
+  toast('War imported');
+  return true;
+}
+function checkHash() {
+  if (!/^#w=/.test(location.hash)) return;
+  const h = location.hash;
+  history.replaceState(null, '', location.pathname + location.search);   // so a refresh doesn't re-prompt
+  importWar(h);
+}
+
+async function copyText(text) {
+  try { await navigator.clipboard.writeText(text); return true; } catch (e) {}
+  const ta = document.createElement('textarea');
+  ta.value = text; document.body.appendChild(ta); ta.select();
+  let ok = false;
+  try { ok = document.execCommand('copy'); } catch (e) {}
+  ta.remove();
+  return ok;
+}
+$('share').addEventListener('click', async () => {
+  if (!state.races.some(Boolean)) { toast('Nothing to share yet'); return; }
+  const key = encodeWar(state);
+  // A file:// link only works on this computer, so share the bare key there.
+  const web = /^https?:$/.test(location.protocol);
+  const ok = await copyText(web ? `${location.origin}${location.pathname}#w=${key}` : key);
+  toast(ok ? (web ? 'Link copied' : 'Key copied') : 'Copy failed');
+});
+$('importWar').addEventListener('click', () => {
+  const text = prompt('Paste a war link or key:');
+  if (text && text.trim()) importWar(text);
+});
+window.addEventListener('hashchange', checkHash);
+
 let toastT = 0;
 function toast(msg) {
   const t = $('toast');
@@ -921,6 +1043,7 @@ paintThemeSeg();
 loadDraft();
 render();
 if (sel >= 0) $('trackQ').focus();
+checkHash();
 </script>
 </body>
 </html>
