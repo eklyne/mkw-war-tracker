@@ -340,6 +340,9 @@ svg .penmark { fill: var(--bad-ink); font-size: 9px; font-weight: 700; font-fami
           <button class="btn" id="share" title="Copy a link (or key) that opens this war">Share war</button>
           <button class="btn" id="importWar" title="Open a war from a pasted link or key">Import war</button>
         </div>
+        <div class="btn-row">
+          <button class="btn" id="exportHist" title="Download every saved war (plus this one) as a CSV">Export history</button>
+        </div>
       </div>
     </aside>
 
@@ -451,6 +454,22 @@ function load() {
   return blank();
 }
 function persist() { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {} }
+
+// Finished-with wars are archived here (oldest first) whenever New war or an
+// import replaces them, as { at: ISO time, us, them, races }.
+const HIST_KEY = 'mkw-war-tracker:history';
+const warJSON = w => JSON.stringify([w.us, w.them, w.races]);
+function loadHistory() {
+  try { const h = JSON.parse(localStorage.getItem(HIST_KEY)); if (Array.isArray(h)) return h; } catch (e) {}
+  return [];
+}
+function archive(w) {
+  if (!w.races.some(Boolean)) return;
+  const h = loadHistory(), j = warJSON(w);
+  if (h.some(x => warJSON(x) === j)) return;   // e.g. a past war re-imported, then replaced again
+  h.push({ at: new Date().toISOString(), us: w.us, them: w.them, races: w.races });
+  try { localStorage.setItem(HIST_KEY, JSON.stringify(h)); } catch (e) { toast('Could not save war history'); }
+}
 function firstEmpty() { return state.races.findIndex(r => !r); }
 const usedTracks = () => new Set(state.races.filter((r, i) => r && r.track && i !== sel).map(r => r.track));
 
@@ -460,9 +479,9 @@ function raceScore(pos, penF = 0, penA = 0) {
   const f = base - penF, a = RACE_TOTAL - base - penA;
   return { f, a, diff: f - a, penF, penA };
 }
-function rows() {
+function rows(w = state) {
   let cf = 0, ca = 0;
-  return state.races.map((r, i) => {
+  return w.races.map((r, i) => {
     if (!r) return { i, played: false, cf, ca, cd: cf - ca };
     const s = raceScore(r.pos, r.penF || 0, r.penA || 0);
     cf += s.f; ca += s.a;
@@ -863,6 +882,7 @@ $('tbody').addEventListener('click', e => { const tr = e.target.closest('tr[data
 $('newWar').addEventListener('click', () => {
   if (state.races.some(Boolean) && !confirm('Start a new war? This clears every race and resets both tags.')) return;
   // A new war resets BOTH tags to their defaults (Λν vs A), not just the races.
+  archive(state);
   state = blank();
   $('fTag').value = '';
   $('aTag').value = '';
@@ -974,6 +994,7 @@ function importWar(text) {
   let w;
   try { w = decodeWar(keyFrom(text)); } catch (e) { toast(e.message); return false; }
   if (state.races.some(Boolean) && !confirm('Open the shared war? This replaces the war you have now.')) return false;
+  archive(state);
   state = w;
   persist();
   lastSaved = null;
@@ -1014,6 +1035,32 @@ $('importWar').addEventListener('click', () => {
   if (text && text.trim()) importWar(text);
 });
 window.addEventListener('hashchange', checkHash);
+
+// ── history export ───────────────────────────────────────────────────────────
+// One CSV row per race. The war in progress is included too (date left blank).
+function historyCSV() {
+  const wars = loadHistory();
+  if (state.races.some(Boolean) && !wars.some(x => warJSON(x) === warJSON(state))) wars.push({ at: '', ...state });
+  const cell = v => /[",\n]/.test(v = String(v)) ? `"${v.replace(/"/g, '""')}"` : v;
+  const stamp = at => at ? new Date(at).toLocaleString('sv-SE').slice(0, 16) : '';   // YYYY-MM-DD HH:MM, local time
+  const out = [['war', 'date', 'us', 'them', 'race', 'track', 'spots', 'pts_us', 'pts_them', 'diff', 'pen_us', 'pen_them', 'total_us', 'total_them', 'total_diff']];
+  wars.forEach((w, k) => rows(w).forEach(r => {
+    if (!r.played) return;
+    out.push([k + 1, stamp(w.at), w.us || 'Λν', w.them || 'A', r.i + 1, r.r.track || '', r.r.pos.join(' '),
+              r.f, r.a, r.diff, r.penF, r.penA, r.cf, r.ca, r.cd]);
+  }));
+  return { csv: out.map(row => row.map(cell).join(',')).join('\r\n'), n: wars.length };
+}
+$('exportHist').addEventListener('click', () => {
+  const { csv, n } = historyCSV();
+  if (!n) { toast('No wars saved yet'); return; }
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' }));   // BOM so Excel reads Λν
+  a.download = `mkw-wars-${new Date().toLocaleDateString('sv-SE')}.csv`;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 0);
+  toast(`Exported ${n} war${n === 1 ? '' : 's'}`);
+});
 
 let toastT = 0;
 function toast(msg) {
