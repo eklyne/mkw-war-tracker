@@ -261,6 +261,32 @@ svg .penmark { fill: var(--bad-ink); font-size: 9px; font-weight: 700; font-fami
          background: var(--ink); color: var(--plane); padding: 8px 14px; border-radius: var(--r-sm);
          font-size: 12.5px; font-weight: 600; opacity: 0; transition: opacity .15s; pointer-events: none; }
 .toast.is-on { opacity: 1; }
+
+/* ── history ── */
+.appbtn { margin-left: auto; cursor: pointer; padding: 4px 10px; font-size: var(--t-micro); font-weight: 600;
+          color: var(--ink-2); background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-sm); }
+.appbtn:hover { color: var(--ink); border-color: var(--border-hard); }
+.appbtn + .seg { margin-left: 0; }
+@media (max-width: 440px) { .brand__name { display: none; } }   /* logo + History + theme don't fit beside it */
+.hist { width: min(760px, calc(100vw - 32px)); max-height: calc(100vh - 64px); padding: 0; overflow: auto;
+        background: var(--surface); color: var(--ink); border: 1px solid var(--border-hard);
+        border-radius: var(--r-lg); box-shadow: 0 12px 40px rgba(0,0,0,.3); }
+.hist::backdrop { background: rgba(0,0,0,.45); }
+.hist__head { position: sticky; top: 0; z-index: 1; display: flex; align-items: center; gap: var(--sp-2);
+              padding: var(--sp-3) var(--sp-4); background: var(--surface); border-bottom: 1px solid var(--border); }
+.hist__h { flex: 1; min-width: 0; }
+.hist__title { font-size: 15px; font-weight: 650; }
+.hist__meta { font-size: 12px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hist__nav { flex: 0 0 auto; min-width: 32px; }
+.hist__nav:disabled { opacity: .4; cursor: default; }
+.hist__body { padding: var(--sp-4); }
+.hist__body .board { margin-bottom: var(--sp-4); }
+.races td.ui { font-family: var(--font-ui); }
+.hist .races td.is-gain { color: var(--good-ink); }   /* won wars green, lost red */
+.hist .races td.is-loss { color: var(--bad-ink); }
+.races th.tag { text-transform: none; }
+.races--static tbody tr { cursor: default; }
+.races--static tbody tr:hover td { background: none; }
 </style>
 </head>
 <body>
@@ -274,6 +300,7 @@ svg .penmark { fill: var(--bad-ink); font-size: 9px; font-weight: 700; font-fami
       </svg>
       <span class="brand__name">War Tracker</span>
     </span>
+    <button class="appbtn" id="histOpen" title="Past wars (H)">History</button>
     <div class="seg" id="theme" role="group" aria-label="Theme">
       <button class="seg__b" data-t="auto">Auto</button>
       <button class="seg__b" data-t="light">Light</button>
@@ -369,6 +396,17 @@ svg .penmark { fill: var(--bad-ink); font-size: 9px; font-weight: 700; font-fami
     </main>
   </div>
 </div>
+
+<dialog class="hist" id="hist" aria-labelledby="histTitle">
+  <div class="hist__head">
+    <div class="hist__h"><div class="hist__title" id="histTitle">History</div><div class="hist__meta" id="histMeta"></div></div>
+    <button class="btn hist__nav" id="histAll">All wars</button>
+    <button class="btn hist__nav" id="histPrev" aria-label="Older war" title="Older (←)">‹</button>
+    <button class="btn hist__nav" id="histNext" aria-label="Newer war" title="Newer (→)">›</button>
+    <button class="btn hist__nav" id="histClose" aria-label="Close" title="Close (Esc)">✕</button>
+  </div>
+  <div class="hist__body" id="histBody"></div>
+</dialog>
 
 <div class="tip" id="tip" hidden></div>
 <div class="toast" id="toast"></div>
@@ -579,19 +617,21 @@ function renderSpots() {
   if (draft.pos.length === TEAM && name) $('preview').title = t.name; else $('preview').removeAttribute('title');
 }
 
-function renderTable(rs) {
-  $('tbody').innerHTML = rs.map(r => {
-    const cls = `${r.i === sel ? 'is-sel' : ''} ${r.played ? '' : 'is-empty'}`;
-    if (!r.played) return `<tr class="${cls}" data-i="${r.i}"><td class="l num">${r.i + 1}</td><td class="l" colspan="7"></td></tr>`;
-    const t = r.r.track && TRACK[r.r.track];
-    return `<tr class="${cls}" data-i="${r.i}">
-      <td class="l num">${r.i + 1}</td>
+function raceCells(r) {
+  const t = r.r.track && TRACK[r.r.track];
+  return `<td class="l num">${r.i + 1}</td>
       <td class="l trk" title="${t ? esc(t.name) : ''}">${t ? t.code : '—'}</td>
       <td class="l">${[...r.r.pos].sort((a, b) => a - b).join(' ')}</td>
       <td>${r.f}${penTag(r.penF)}</td><td>${r.a}${penTag(r.penA)}</td>
       <td class="${toneCls(r.diff)}">${signed(r.diff)}</td>
       <td>${r.cf}–${r.ca}</td>
-      <td class="lead ${toneCls(r.cd)}">${signed(r.cd)}</td></tr>`;
+      <td class="lead ${toneCls(r.cd)}">${signed(r.cd)}</td>`;
+}
+function renderTable(rs) {
+  $('tbody').innerHTML = rs.map(r => {
+    const cls = `${r.i === sel ? 'is-sel' : ''} ${r.played ? '' : 'is-empty'}`;
+    if (!r.played) return `<tr class="${cls}" data-i="${r.i}"><td class="l num">${r.i + 1}</td><td class="l" colspan="7"></td></tr>`;
+    return `<tr class="${cls}" data-i="${r.i}">${raceCells(r)}</tr>`;
   }).join('');
   const last = rs[N_RACES - 1];
   $('tfoot').innerHTML = `<tr><td class="l" colspan="3">Total</td><td>${last.cf}</td><td>${last.ca}</td>
@@ -854,9 +894,14 @@ $('penToggle').addEventListener('click', () => { draft.showPen = true; renderEnt
 document.addEventListener('keydown', e => {
   // Keyed off the event's TARGET, not the focused element: the track box blurs
   // itself mid-keypress, and the same key must not be handled a second time here.
+  if ($('hist').open) {                       // the history dialog owns the keyboard while it is up
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') { e.preventDefault(); stepHistory(e.key === 'ArrowLeft' ? -1 : 1); }
+    return;
+  }
   const a = e.target;
   if (a && a.tagName === 'INPUT') return;
   if (e.ctrlKey || e.metaKey || e.altKey) return;
+  if (e.key === 'h' || e.key === 'H') { e.preventDefault(); openHistory(); return; }
   if (e.key === 'Backspace') { e.preventDefault(); popSpot(); return; }   // also works once the war is complete
   if (sel < 0) return;
   const p = digitSpot(e);
@@ -1061,6 +1106,91 @@ $('exportHist').addEventListener('click', () => {
   setTimeout(() => URL.revokeObjectURL(a.href), 0);
   toast(`Exported ${n} war${n === 1 ? '' : 's'}`);
 });
+
+// ── history viewer ───────────────────────────────────────────────────────────
+// A dialog over the tracker: one archived war at a time (←/→ to flick), or the
+// list of them all. Read-only, so it never touches the war being recorded.
+let histWars = [], histI = -1;                // histI indexes histWars (oldest first); -1 = the list
+const when = at => new Date(at).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
+const tagsOf = w => [w.us || 'Λν', w.them || 'A'];
+const playedOf = w => w.races.filter(Boolean).length;
+
+function openHistory() {
+  histWars = loadHistory();
+  histI = histWars.length - 1;                // open on the latest war
+  renderHistory();
+  $('hist').showModal();
+}
+function stepHistory(d) {
+  const k = histI + d;
+  if (histI < 0 || k < 0 || k >= histWars.length) return;
+  histI = k;
+  renderHistory();
+}
+function renderHistory() {
+  const n = histWars.length, list = histI < 0;
+  $('histAll').hidden = $('histPrev').hidden = $('histNext').hidden = list || !n;
+  $('histPrev').disabled = histI <= 0;
+  $('histNext').disabled = histI >= n - 1;
+  $('hist').scrollTop = 0;
+  if (!n) {
+    $('histTitle').textContent = 'History';
+    $('histMeta').textContent = '';
+    $('histBody').innerHTML = '<div class="done">No wars saved yet. A war is saved here when you start a new one.</div>';
+    return;
+  }
+  list ? renderHistoryList() : renderHistoryWar(histWars[histI], histI);
+}
+function renderHistoryList() {
+  // The record only counts full wars: a war abandoned at race 6 isn't a win or a loss.
+  const full = histWars.filter(w => playedOf(w) === N_RACES).map(w => rows(w)[N_RACES - 1].cd);
+  const won = full.filter(d => d > 0).length, lost = full.filter(d => d < 0).length, tied = full.length - won - lost;
+  $('histTitle').textContent = 'All wars';
+  $('histMeta').textContent = `${histWars.length} saved` + (full.length ? ` · ${won}W ${lost}L${tied ? ` ${tied}T` : ''}` : '');
+  const body = histWars.map((w, k) => {
+    const last = rows(w)[N_RACES - 1], [f, a] = tagsOf(w);
+    return `<tr data-k="${k}">
+      <td class="l num">${k + 1}</td>
+      <td class="l ui">${esc(when(w.at))}</td>
+      <td class="l trk">${esc(f)}</td><td>${last.cf}</td>
+      <td class="l trk">${esc(a)}</td><td>${last.ca}</td>
+      <td class="lead ${toneCls(last.cd)}">${signed(last.cd)}</td></tr>`;
+  }).reverse().join('');                      // newest first
+  $('histBody').innerHTML = `<div class="tbl-wrap"><table class="races">
+    <thead><tr><th class="l">War #</th><th class="l">Date</th><th class="l">Team</th><th>F</th>
+      <th class="l">Against</th><th>A</th><th>+/−</th></tr></thead>
+    <tbody>${body}</tbody></table></div>`;
+}
+function renderHistoryWar(w, k) {
+  const rs = rows(w), last = rs[N_RACES - 1], d = last.cd, p = playedOf(w), [f, a] = tagsOf(w);
+  const k2 = p < N_RACES ? `${p}/${N_RACES} races` : d > 0 ? 'Won' : d < 0 ? 'Lost' : 'Tied';
+  $('histTitle').textContent = `War ${k + 1} of ${histWars.length}`;
+  $('histMeta').textContent = when(w.at);
+  $('histBody').innerHTML = `
+    <section class="board" data-tone="${d > 0 ? 'good' : d < 0 ? 'bad' : ''}">
+      <div class="board__row">
+        <div><div class="team__k">${esc(f)}</div><div class="team__v">${last.cf}</div></div>
+        <div class="lead"><div class="lead__v ${toneCls(d)}">${glyph(d)}${signed(d)}</div><div class="lead__k">${k2}</div></div>
+        <div class="team--a"><div class="team__k">${esc(a)}</div><div class="team__v">${last.ca}</div></div>
+      </div>
+    </section>
+    <div class="tbl-wrap"><table class="races races--static">
+      <thead><tr><th class="l">#</th><th class="l">Track</th><th class="l">Spots</th>
+        <th class="tag">${esc(f)}</th><th class="tag">${esc(a)}</th><th>+/−</th><th>Score</th><th>Lead</th></tr></thead>
+      <tbody>${rs.filter(r => r.played).map(r => `<tr>${raceCells(r)}</tr>`).join('')}</tbody>
+    </table></div>`;
+}
+$('histOpen').addEventListener('click', openHistory);
+$('histClose').addEventListener('click', () => $('hist').close());
+$('histAll').addEventListener('click', () => { histI = -1; renderHistory(); });
+$('histPrev').addEventListener('click', () => stepHistory(-1));
+$('histNext').addEventListener('click', () => stepHistory(1));
+$('histBody').addEventListener('click', e => {
+  const tr = e.target.closest('tr[data-k]');
+  if (tr) { histI = +tr.dataset.k; renderHistory(); }
+});
+$('hist').addEventListener('click', e => { if (e.target === $('hist')) $('hist').close(); });   // backdrop
+$('hist').addEventListener('close', () => { if (sel >= 0) $('trackQ').focus(); });
 
 let toastT = 0;
 function toast(msg) {
