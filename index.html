@@ -302,6 +302,17 @@ svg .penmark { fill: var(--bad-ink); font-size: 9px; font-weight: 700; font-fami
 .binbtn:hover { color: var(--bad-ink); background: var(--bad-soft); }
 .binbtn svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.3; stroke-linecap: round; stroke-linejoin: round; }
 .races th.tag { text-transform: none; }
+/* Λν-only switch: a sliding knob, accent when on. */
+.sw { flex: 0 0 auto; display: inline-flex; align-items: center; gap: 7px; padding: 4px 2px; border: 0; background: none;
+      cursor: pointer; color: var(--ink-2); font-size: 12px; font-weight: 600; }
+.sw[hidden] { display: none; }
+.sw:hover { color: var(--ink); }
+.sw__t { position: relative; width: 30px; height: 18px; border-radius: 99px; background: var(--border-hard); transition: background .15s; }
+.sw__t::after { content: ''; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%;
+                background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.3); transition: transform .15s; }
+.sw[aria-checked="true"] .sw__t { background: var(--accent); }
+.sw[aria-checked="true"] .sw__t::after { transform: translateX(12px); }
+@media (prefers-reduced-motion: reduce) { .sw__t, .sw__t::after { transition: none; } }
 .races--static tbody tr { cursor: default; }
 .races--static tbody tr:hover td { background: none; }
 </style>
@@ -421,6 +432,7 @@ svg .penmark { fill: var(--bad-ink); font-size: 9px; font-weight: 700; font-fami
       <button class="seg__b" data-tab="wars">Wars</button>
       <button class="seg__b" data-tab="stats">Analytics</button>
     </div>
+    <button class="sw" id="histAv" role="switch" aria-checked="true" title="Only count wars we played as Λν"><span class="sw__t"></span>Λν only</button>
     <button class="btn hist__nav" id="histAll">Archive</button>
     <button class="btn hist__nav" id="histPrev" aria-label="Older war" title="Older (←)">‹</button>
     <button class="btn hist__nav" id="histNext" aria-label="Newer war" title="Newer (→)">›</button>
@@ -1135,7 +1147,13 @@ $('exportHist').addEventListener('click', () => {
 // A dialog over the tracker: one archived war at a time (←/→ to flick), or the
 // list of them all, or the Analytics tab. Read-only, so it never touches the
 // war being recorded.
-let histWars = [], histI = -1;                // histI indexes histWars (oldest first); -1 = the list
+let histAll = [];                             // every archived war, oldest first
+let histWars = [], histI = -1;                // histAll after the Λν filter; histI indexes it; -1 = the list
+const AV_KEY = 'mkw-war-tracker:avOnly';
+let avOnly = (() => { try { return localStorage.getItem(AV_KEY) !== '0'; } catch (e) { return true; } })();   // on by default
+// Our wars as Λν: the default (blank) tag, or Λν/Av typed in by hand.
+const isAv = w => !w.us || w.us.trim().toLowerCase().replace(/λ/g, 'a').replace(/ν/g, 'v') === 'av';
+function filterHistory() { histWars = avOnly ? histAll.filter(isAv) : histAll; }
 let histTab = 'wars';                         // 'wars' | 'stats'
 const when = at => new Date(at).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
 const tagsOf = w => [w.us || 'Λν', w.them || 'A'];
@@ -1143,7 +1161,8 @@ const playedOf = w => w.races.filter(Boolean).length;
 const BIN_ICON = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 4h11M6 4V2.5h4V4M4 4l.7 9.5h6.6L12 4M6.8 6.5v4.5M9.2 6.5v4.5"/></svg>';
 
 function openHistory() {
-  histWars = loadHistory();
+  histAll = loadHistory();
+  filterHistory();
   histI = -1;                                 // open on the list
   histTab = 'wars';
   renderHistory();
@@ -1158,6 +1177,8 @@ function stepHistory(d) {
 function renderHistory() {
   const n = histWars.length, war = histTab === 'wars' && histI >= 0;
   $('histAll').hidden = $('histPrev').hidden = $('histNext').hidden = !war || !n;
+  $('histAv').hidden = war && n > 0;
+  $('histAv').setAttribute('aria-checked', avOnly);
   $('histPrev').disabled = histI <= 0;
   $('histNext').disabled = histI >= n - 1;
   document.querySelectorAll('#histTabs .seg__b').forEach(b => b.classList.toggle('is-on', b.dataset.tab === histTab));
@@ -1165,7 +1186,9 @@ function renderHistory() {
   if (!n) {
     $('histTitle').textContent = histTab === 'stats' ? 'Analytics' : 'Archive';
     $('histMeta').textContent = '';
-    $('histBody').innerHTML = '<div class="done">No wars saved yet. A war is saved here when you start a new one.</div>';
+    $('histBody').innerHTML = histAll.length
+      ? '<div class="done">No Λν wars saved yet. Turn off “Λν only” to see the rest.</div>'
+      : '<div class="done">No wars saved yet. A war is saved here when you start a new one.</div>';
     return;
   }
   histTab === 'stats' ? renderAnalytics() : war ? renderHistoryWar(histWars[histI], histI) : renderHistoryList();
@@ -1182,7 +1205,7 @@ function renderAnalytics() {
   const list = Object.entries(by).map(([code, s]) => ({ t: TRACK[code], n: s.n, ev: s.sum / s.n }))
     .sort((a, b) => b.ev - a.ev || b.n - a.n);
   $('histTitle').textContent = 'Analytics';
-  $('histMeta').textContent = '';
+  $('histMeta').textContent = `${histWars.length} ${avOnly ? 'Λν ' : ''}war${histWars.length === 1 ? '' : 's'}`;
   if (!list.length) { $('histBody').innerHTML = '<div class="done">No races with a track yet.</div>'; return; }
   // One shared scale, zero in the middle, so every bar compares directly with every other.
   const D = Math.max(...list.map(x => Math.abs(x.ev))) || 1;
@@ -1203,7 +1226,7 @@ function renderHistoryList() {
   const full = histWars.filter(w => playedOf(w) === N_RACES).map(w => rows(w)[N_RACES - 1].cd);
   const won = full.filter(d => d > 0).length, lost = full.filter(d => d < 0).length, tied = full.length - won - lost;
   $('histTitle').textContent = 'Archive';
-  $('histMeta').textContent = `${histWars.length} saved` + (full.length ? ` · ${won}W ${lost}L${tied ? ` ${tied}T` : ''}` : '');
+  $('histMeta').textContent = `${histWars.length} ${avOnly ? 'Λν ' : ''}saved` + (full.length ? ` · ${won}W ${lost}L${tied ? ` ${tied}T` : ''}` : '');
   const body = histWars.map((w, k) => {
     const last = rows(w)[N_RACES - 1], [f, a] = tagsOf(w);
     return `<tr data-k="${k}">
@@ -1248,6 +1271,13 @@ $('histTabs').addEventListener('click', e => {
   histI = -1;                                 // Wars always comes back to the list
   renderHistory();
 });
+$('histAv').addEventListener('click', () => {
+  avOnly = !avOnly;
+  try { localStorage.setItem(AV_KEY, avOnly ? '1' : '0'); } catch (e) {}
+  filterHistory();
+  histI = -1;
+  renderHistory();
+});
 $('histPrev').addEventListener('click', () => stepHistory(-1));
 $('histNext').addEventListener('click', () => stepHistory(1));
 $('histBody').addEventListener('click', e => {
@@ -1255,8 +1285,9 @@ $('histBody').addEventListener('click', e => {
   if (del) {
     const k = +del.dataset.del, w = histWars[k], last = rows(w)[N_RACES - 1], [f, a] = tagsOf(w);
     if (!confirm(`Delete war ${k + 1} (${f} ${last.cf} – ${last.ca} ${a}, ${when(w.at)})? This can't be undone.`)) return;
-    histWars.splice(k, 1);
-    saveHistory(histWars);
+    histAll.splice(histAll.indexOf(w), 1);
+    saveHistory(histAll);
+    filterHistory();
     renderHistory();
     toast('War deleted');
     return;
