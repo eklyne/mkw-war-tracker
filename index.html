@@ -277,8 +277,11 @@ svg .penmark { fill: var(--bad-ink); font-size: 9px; font-weight: 700; font-fami
 .hist__head { flex-wrap: wrap; }
 .hist__h { flex: 1 1 140px; min-width: 0; }
 @media (max-width: 520px) {                   /* phone: tabs get their own row, track names go */
-  #histTabs { order: 1; width: 100%; margin-left: 0; }
+  #histTabs { order: 2; width: 100%; margin-left: 0; }
   #histTabs .seg__b { flex: 1; }
+  .hist .sw, .hist .mr { order: 1; }          /* title + close, then the filters, then the tabs */
+  .hist .mr { margin-left: auto; }
+  .hist__h { flex-basis: calc(100% - 48px); } /* leaves just room for ✕ beside the title */
   .hist .name { display: none; }
 }
 .hist__title { font-size: 15px; font-weight: 650; }
@@ -313,6 +316,19 @@ svg .penmark { fill: var(--bad-ink); font-size: 9px; font-weight: 700; font-fami
 .sw[aria-checked="true"] .sw__t { background: var(--accent); }
 .sw[aria-checked="true"] .sw__t::after { transform: translateX(12px); }
 @media (prefers-reduced-motion: reduce) { .sw__t, .sw__t::after { transition: none; } }
+/* Min-races stepper (Analytics only): − [n] + in one bordered pill. */
+.mr { flex: 0 0 auto; display: inline-flex; align-items: center; gap: 7px; font-size: 12px; font-weight: 600; color: var(--ink-2); }
+.mr[hidden] { display: none; }
+.mr__box { display: inline-flex; align-items: stretch; height: 24px; border: 1px solid var(--border); border-radius: var(--r-sm);
+           background: var(--surface); overflow: hidden; transition: border-color .12s, box-shadow .12s; }
+.mr__box:hover { border-color: var(--border-hard); }
+.mr__box:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.mr__b { width: 22px; padding: 0; border: 0; background: none; cursor: pointer; color: var(--muted); font-size: 14px; line-height: 1; }
+.mr__b:hover:not(:disabled) { color: var(--accent-ink); background: var(--accent-soft); }
+.mr__b:disabled { opacity: .35; cursor: default; }
+.mr__b:focus-visible { outline: none; color: var(--accent-ink); background: var(--accent-soft); }
+.mr__in { width: 28px; padding: 0; border: 0; border-inline: 1px solid var(--border); background: none; outline: none;
+          text-align: center; color: var(--ink); font: 600 12px var(--font-mono); font-variant-numeric: tabular-nums; }
 .races--static tbody tr { cursor: default; }
 .races--static tbody tr:hover td { background: none; }
 </style>
@@ -433,6 +449,11 @@ svg .penmark { fill: var(--bad-ink); font-size: 9px; font-weight: 700; font-fami
       <button class="seg__b" data-tab="stats">Analytics</button>
     </div>
     <button class="sw" id="histAv" role="switch" aria-checked="true" title="Only count wars we played as Λν"><span class="sw__t"></span>Λν only</button>
+    <label class="mr" id="histMin" for="minIn" title="Leave out tracks with fewer races than this">Min races
+      <span class="mr__box">
+        <button type="button" class="mr__b" id="minDown" aria-label="Fewer">−</button><input class="mr__in" id="minIn" inputmode="numeric" maxlength="2" autocomplete="off"><button type="button" class="mr__b" id="minUp" aria-label="More">+</button>
+      </span>
+    </label>
     <button class="btn hist__nav" id="histAll">Archive</button>
     <button class="btn hist__nav" id="histPrev" aria-label="Older war" title="Older (←)">‹</button>
     <button class="btn hist__nav" id="histNext" aria-label="Newer war" title="Newer (→)">›</button>
@@ -931,7 +952,7 @@ document.addEventListener('keydown', e => {
   // Keyed off the event's TARGET, not the focused element: the track box blurs
   // itself mid-keypress, and the same key must not be handled a second time here.
   if ($('hist').open) {                       // the history dialog owns the keyboard while it is up
-    if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') { e.preventDefault(); stepHistory(e.key === 'ArrowLeft' ? -1 : 1); }
+    if ((e.key === 'ArrowLeft' || e.key === 'ArrowRight') && e.target.tagName !== 'INPUT') { e.preventDefault(); stepHistory(e.key === 'ArrowLeft' ? -1 : 1); }
     return;
   }
   const a = e.target;
@@ -1179,6 +1200,8 @@ function renderHistory() {
   $('histAll').hidden = $('histPrev').hidden = $('histNext').hidden = !war || !n;
   $('histAv').hidden = war && n > 0;
   $('histAv').setAttribute('aria-checked', avOnly);
+  $('histMin').hidden = histTab !== 'stats' || !n;
+  paintMin();
   $('histPrev').disabled = histI <= 0;
   $('histNext').disabled = histI >= n - 1;
   document.querySelectorAll('#histTabs .seg__b').forEach(b => b.classList.toggle('is-on', b.dataset.tab === histTab));
@@ -1194,7 +1217,22 @@ function renderHistory() {
   histTab === 'stats' ? renderAnalytics() : war ? renderHistoryWar(histWars[histI], histI) : renderHistoryList();
 }
 // EV per track = the average race +/− on it, from spots only: a penalty isn't the track's doing.
-const MIN_RACES = 5;                          // tracks with fewer races than this are left out
+// Tracks with fewer races than minRaces are left out (too few to mean much). Set in the header, remembered.
+const MIN_KEY = 'mkw-war-tracker:minRaces', MIN_LO = 1, MIN_HI = 99;
+let minRaces = (() => { try { const v = parseInt(localStorage.getItem(MIN_KEY), 10); if (v >= MIN_LO && v <= MIN_HI) return v; } catch (e) {} return 5; })();
+function paintMin() {
+  if (document.activeElement !== $('minIn')) $('minIn').value = minRaces;
+  $('minDown').disabled = minRaces <= MIN_LO;
+  $('minUp').disabled = minRaces >= MIN_HI;
+}
+function setMin(v) {
+  v = Math.min(MIN_HI, Math.max(MIN_LO, v));
+  if (v === minRaces) { paintMin(); return; }
+  minRaces = v;
+  try { localStorage.setItem(MIN_KEY, String(v)); } catch (e) {}
+  paintMin();
+  renderAnalytics();
+}
 function renderAnalytics() {
   const by = {};
   histWars.forEach(w => w.races.forEach(r => {
@@ -1204,13 +1242,11 @@ function renderAnalytics() {
   }));
   const ev1 = v => { const x = Math.round(v * 10) / 10; return x > 0 ? `+${x.toFixed(1)}` : x < 0 ? `−${(-x).toFixed(1)}` : '0.0'; };
   const all = Object.entries(by).map(([code, s]) => ({ t: TRACK[code], n: s.n, ev: s.sum / s.n }));
-  const list = all.filter(x => x.n >= MIN_RACES).sort((a, b) => b.ev - a.ev || b.n - a.n);   // too few races is noise
-  const hidden = all.length - list.length;
+  const list = all.filter(x => x.n >= minRaces).sort((a, b) => b.ev - a.ev || b.n - a.n);
   $('histTitle').textContent = 'Analytics';
-  $('histMeta').textContent = `${histWars.length} ${avOnly ? 'Λν ' : ''}war${histWars.length === 1 ? '' : 's'}`
-    + (hidden ? ` · ${hidden} track${hidden === 1 ? '' : 's'} under ${MIN_RACES} races hidden` : '');
+  $('histMeta').textContent = `${histWars.length} ${avOnly ? 'Λν ' : ''}war${histWars.length === 1 ? '' : 's'}`;
   if (!list.length) {
-    $('histBody').innerHTML = `<div class="done">${all.length ? `No track has ${MIN_RACES}+ races yet.` : 'No races with a track yet.'}</div>`;
+    $('histBody').innerHTML = `<div class="done">${all.length ? `No track has ${minRaces}+ race${minRaces === 1 ? '' : 's'} yet.` : 'No races with a track yet.'}</div>`;
     return;
   }
   // One shared scale, zero in the middle, so every bar compares directly with every other.
@@ -1284,6 +1320,19 @@ $('histAv').addEventListener('click', () => {
   histI = -1;
   renderHistory();
 });
+$('minDown').addEventListener('click', () => setMin(minRaces - 1));
+$('minUp').addEventListener('click', () => setMin(minRaces + 1));
+$('minIn').addEventListener('input', e => {
+  e.target.value = e.target.value.replace(/D/g, '');
+  const v = parseInt(e.target.value, 10);
+  if (v >= MIN_LO) setMin(v);                 // blank or 0 mid-edit: wait for a real number
+});
+$('minIn').addEventListener('keydown', e => {
+  if (e.key === 'ArrowUp' || e.key === 'ArrowDown') { e.preventDefault(); setMin(minRaces + (e.key === 'ArrowUp' ? 1 : -1)); e.target.value = minRaces; }
+  if (e.key === 'Enter') e.target.blur();
+});
+$('minIn').addEventListener('blur', paintMin);  // tidy up a blank box
+$('minIn').addEventListener('focus', e => e.target.select());
 $('histPrev').addEventListener('click', () => stepHistory(-1));
 $('histNext').addEventListener('click', () => stepHistory(1));
 $('histBody').addEventListener('click', e => {

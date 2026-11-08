@@ -1,0 +1,252 @@
+- generic:
+  - banner:
+    - generic:
+      - generic: War Tracker
+      - button: Archive
+      - group:
+        - button: Auto
+        - button: Light
+        - button: Dark
+  - generic:
+    - generic:
+      - generic:
+        - generic:
+          - generic: Λν
+          - generic: "0"
+        - generic:
+          - generic: "0"
+          - generic: Lead
+        - generic:
+          - generic: A
+          - generic: "0"
+    - generic:
+      - complementary:
+        - generic:
+          - generic: Race 1
+          - textbox:
+            - /placeholder: Track (type or click)
+          - generic:
+            - button: LC
+            - button: MMM
+            - button: MG
+            - button: TF
+            - button: MC
+            - button: CM
+            - button: DKS
+            - button: WGM
+            - button: DC
+            - button: KC
+            - button: MT
+            - button: GV
+            - button: DDR
+            - button: MH
+            - button: BC
+            - button: RR
+            - button: rPB
+            - button: rYF
+            - button: rGV2
+            - button: rMR
+            - button: rSL
+            - button: rSGB
+            - button: rDS
+            - button: rWS
+            - button: rDH
+            - button: rBC3
+            - button: rDKJP
+            - button: rMC
+            - button: rMC3
+            - button: rPG
+            - button: rDKM
+            - button: rBC
+          - generic:
+            - text: Spots
+            - generic: 0/5
+          - generic:
+            - button:
+              - generic: 1st
+              - text: "1"
+            - button:
+              - generic: 2nd
+              - text: "2"
+            - button:
+              - generic: 3rd
+              - text: "3"
+            - button:
+              - generic: 4th
+              - text: "4"
+            - button:
+              - generic: 5th
+              - text: "5"
+            - button:
+              - generic: 6th
+              - text: "6"
+            - button:
+              - generic: 7th
+              - text: "7"
+            - button:
+              - generic: 8th
+              - text: "8"
+            - button:
+              - generic: 9th
+              - text: "9"
+            - button:
+              - generic: 10th
+              - text: "0"
+          - button: + Penalty
+        - generic:
+          - generic:
+            - generic:
+              - generic: Our tag
+              - textbox:
+                - /placeholder: Λν
+            - generic:
+              - generic: Opponent
+              - textbox:
+                - /placeholder: A
+          - generic:
+            - button: Copy score
+            - button: New war
+          - generic:
+            - button: Share war
+            - button: Import war
+          - generic:
+            - button: Export archive
+      - main:
+        - generic:
+          - text: Lead
+          - generic:
+            - img:
+              - generic: −20
+              - generic: −10
+              - generic: "0"
+              - generic: "+10"
+              - generic: "+20"
+              - generic: ▲ Λν AHEAD
+              - generic: ▼ A AHEAD
+              - generic: "1"
+              - generic: "2"
+              - generic: "3"
+              - generic: "4"
+              - generic: "5"
+              - generic: "6"
+              - generic: "7"
+              - generic: "8"
+              - generic: "9"
+              - generic: "10"
+              - generic: "11"
+              - generic: "12"
+          - generic: Race +/−
+          - generic:
+            - img:
+              - generic: "+20"
+              - generic: −20
+              - generic: "+40"
+              - generic: −40
+              - generic: "0"
+              - generic: "1"
+              - generic: "2"
+              - generic: "3"
+              - generic: "4"
+              - generic: "5"
+              - generic: "6"
+              - generic: "7"
+              - generic: "8"
+              - generic: "9"
+              - generic: "10"
+              - generic: "11"
+              - generic: "12"
+        - generic:
+          - generic:
+            - table:
+              - rowgroup:
+                - row:
+                  - columnheader: "#"
+                  - columnheader: Track
+                  - columnheader: Spots
+                  - columnheader: Λν
+                  - columnheader: A
+                  - columnheader: +/−
+                  - columnheader: Score
+                  - columnheader: Lead
+              - rowgroup:
+                - row:
+                  - cell: "1"
+                  - cell
+                - row:
+                  - cell: "2"
+                  - cell
+                - row:
+                  - cell: "3"
+                  - cell
+                - row:
+                  - cell: "4"
+                  - cell
+                - row:
+                  - cell: "5"
+                  - cell
+                - row:
+                  - cell: "6"
+                  - cell
+                - row:
+                  - cell: "7"
+                  - cell
+                - row:
+                  - cell: "8"
+                  - cell
+                - row:
+                  - cell: "9"
+                  - cell
+                - row:
+                  - cell: "10"
+                  - cell
+                - row:
+                  - cell: "11"
+                  - cell
+                - row:
+                  - cell: "12"
+                  - cell
+              - rowgroup:
+                - row:
+                  - cell: Total
+                  - cell: "0"
+                  - cell: "0"
+                  - cell
+                  - cell
+                  - cell: "0"
+  - dialog "Analytics" [ref=f1e347]:
+    - generic [ref=f1e311]:
+      - generic [ref=f1e312]:
+        - generic [ref=f1e313]: Analytics
+        - generic [ref=f1e314]: 1 Λν war
+      - group "View" [ref=f1e315]:
+        - button "Wars" [ref=f1e316] [cursor=pointer]
+        - button "Analytics" [ref=f1e317] [cursor=pointer]
+      - switch "Λν only" [checked] [ref=f1e318] [cursor=pointer]
+      - generic "Leave out tracks with fewer races than this" [ref=f1e348]:
+        - text: Min races
+        - generic [ref=f1e349]:
+          - button "Fewer" [active] [ref=f1e350] [cursor=pointer]: −
+          - textbox "Min races Fewer More" [ref=f1e351]: "4"
+          - button "More" [ref=f1e352] [cursor=pointer]: +
+      - button "Close" [ref=f1e320] [cursor=pointer]: ✕
+    - table [ref=f1e372]:
+      - rowgroup [ref=f1e373]:
+        - row [ref=f1e374]:
+          - columnheader "Track" [ref=f1e375]
+          - columnheader [ref=f1e376]
+          - columnheader "N" [ref=f1e377]
+          - columnheader "EV +/−" [ref=f1e378]
+          - columnheader [ref=f1e379]
+      - rowgroup [ref=f1e380]:
+        - row [ref=f1e381]:
+          - cell "RR" [ref=f1e382]
+          - cell "Rainbow Road" [ref=f1e383]
+          - cell "6" [ref=f1e384]
+          - cell "+41.0" [ref=f1e385]
+          - 'cell "Rainbow Road: +41.0 over 6 races" [ref=f1e386]'
+        - row [ref=f1e389]:
+          - cell "LC" [ref=f1e390]
+          - cell "Luigi Circuit" [ref=f1e391]
+          - cell "4" [ref=f1e392]
+          - cell "−41.0" [ref=f1e393]
+          - 'cell "Luigi Circuit: −41.0 over 4 races" [ref=f1e394]'

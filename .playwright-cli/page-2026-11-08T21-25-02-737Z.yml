@@ -1,0 +1,357 @@
+- generic:
+  - banner:
+    - generic:
+      - button: Archive
+      - group:
+        - button: Auto
+        - button: Light
+        - button: Dark
+  - generic:
+    - generic:
+      - generic:
+        - generic:
+          - generic: Λν
+          - generic: "0"
+        - generic:
+          - generic: "0"
+          - generic: Lead
+        - generic:
+          - generic: A
+          - generic: "0"
+    - generic:
+      - complementary:
+        - generic:
+          - generic: Race 1
+          - textbox:
+            - /placeholder: Track (type or click)
+          - generic:
+            - button: LC
+            - button: MMM
+            - button: MG
+            - button: TF
+            - button: MC
+            - button: CM
+            - button: DKS
+            - button: WGM
+            - button: DC
+            - button: KC
+            - button: MT
+            - button: GV
+            - button: DDR
+            - button: MH
+            - button: BC
+            - button: RR
+            - button: rPB
+            - button: rYF
+            - button: rGV2
+            - button: rMR
+            - button: rSL
+            - button: rSGB
+            - button: rDS
+            - button: rWS
+            - button: rDH
+            - button: rBC3
+            - button: rDKJP
+            - button: rMC
+            - button: rMC3
+            - button: rPG
+            - button: rDKM
+            - button: rBC
+          - generic:
+            - text: Spots
+            - generic: 0/5
+          - generic:
+            - button:
+              - generic: 1st
+              - text: "1"
+            - button:
+              - generic: 2nd
+              - text: "2"
+            - button:
+              - generic: 3rd
+              - text: "3"
+            - button:
+              - generic: 4th
+              - text: "4"
+            - button:
+              - generic: 5th
+              - text: "5"
+            - button:
+              - generic: 6th
+              - text: "6"
+            - button:
+              - generic: 7th
+              - text: "7"
+            - button:
+              - generic: 8th
+              - text: "8"
+            - button:
+              - generic: 9th
+              - text: "9"
+            - button:
+              - generic: 10th
+              - text: "0"
+          - button: + Penalty
+        - generic:
+          - generic:
+            - generic:
+              - generic: Our tag
+              - textbox:
+                - /placeholder: Λν
+            - generic:
+              - generic: Opponent
+              - textbox:
+                - /placeholder: A
+          - generic:
+            - button: Copy score
+            - button: New war
+          - generic:
+            - button: Share war
+            - button: Import war
+          - generic:
+            - button: Export archive
+      - main:
+        - generic:
+          - text: Lead
+          - generic:
+            - img:
+              - generic: −20
+              - generic: −10
+              - generic: "0"
+              - generic: "+10"
+              - generic: "+20"
+              - generic: ▲ Λν AHEAD
+              - generic: ▼ A AHEAD
+              - generic: "1"
+              - generic: "2"
+              - generic: "3"
+              - generic: "4"
+              - generic: "5"
+              - generic: "6"
+              - generic: "7"
+              - generic: "8"
+              - generic: "9"
+              - generic: "10"
+              - generic: "11"
+              - generic: "12"
+          - generic: Race +/−
+          - generic:
+            - img:
+              - generic: "+20"
+              - generic: −20
+              - generic: "+40"
+              - generic: −40
+              - generic: "0"
+              - generic: "1"
+              - generic: "2"
+              - generic: "3"
+              - generic: "4"
+              - generic: "5"
+              - generic: "6"
+              - generic: "7"
+              - generic: "8"
+              - generic: "9"
+              - generic: "10"
+              - generic: "11"
+              - generic: "12"
+        - generic:
+          - generic:
+            - table:
+              - rowgroup:
+                - row:
+                  - columnheader: "#"
+                  - columnheader: Track
+                  - columnheader: Spots
+                  - columnheader: Λν
+                  - columnheader: A
+                  - columnheader: +/−
+                  - columnheader: Score
+                  - columnheader: Lead
+              - rowgroup:
+                - row:
+                  - cell: "1"
+                  - cell
+                - row:
+                  - cell: "2"
+                  - cell
+                - row:
+                  - cell: "3"
+                  - cell
+                - row:
+                  - cell: "4"
+                  - cell
+                - row:
+                  - cell: "5"
+                  - cell
+                - row:
+                  - cell: "6"
+                  - cell
+                - row:
+                  - cell: "7"
+                  - cell
+                - row:
+                  - cell: "8"
+                  - cell
+                - row:
+                  - cell: "9"
+                  - cell
+                - row:
+                  - cell: "10"
+                  - cell
+                - row:
+                  - cell: "11"
+                  - cell
+                - row:
+                  - cell: "12"
+                  - cell
+              - rowgroup:
+                - row:
+                  - cell: Total
+                  - cell: "0"
+                  - cell: "0"
+                  - cell
+                  - cell
+                  - cell: "0"
+  - dialog "War 1 of 1" [active] [ref=f1e401]:
+    - generic [ref=f1e310]:
+      - generic [ref=f1e311]:
+        - generic [ref=f1e312]: War 1 of 1
+        - generic [ref=f1e313]: Nov 1, 2026, 10:00 AM
+      - group "View" [ref=f1e314]:
+        - button "Wars" [ref=f1e315] [cursor=pointer]
+        - button "Analytics" [ref=f1e316] [cursor=pointer]
+      - button "Archive" [ref=f1e402] [cursor=pointer]
+      - button "Older war" [disabled] [ref=f1e403]: ‹
+      - button "Newer war" [disabled] [ref=f1e404]: ›
+      - button "Close" [ref=f1e319] [cursor=pointer]: ✕
+    - generic [ref=f1e320]:
+      - generic [ref=f1e406]:
+        - generic [ref=f1e407]:
+          - generic [ref=f1e408]: Λν
+          - generic [ref=f1e409]: "366"
+        - generic [ref=f1e410]:
+          - generic [ref=f1e411]: "0"
+          - generic [ref=f1e412]: Tied
+        - generic [ref=f1e413]:
+          - generic [ref=f1e414]: X
+          - generic [ref=f1e415]: "366"
+      - table [ref=f1e417]:
+        - rowgroup [ref=f1e418]:
+          - row [ref=f1e419]:
+            - columnheader "#" [ref=f1e420]
+            - columnheader "Track" [ref=f1e421]
+            - columnheader "Spots" [ref=f1e422]
+            - columnheader "Λν" [ref=f1e423]
+            - columnheader "X" [ref=f1e424]
+            - columnheader "+/−" [ref=f1e425]
+            - columnheader "Score" [ref=f1e426]
+            - columnheader "Lead" [ref=f1e427]
+        - rowgroup [ref=f1e428]:
+          - row [ref=f1e429]:
+            - cell "1" [ref=f1e430]
+            - cell "RR" [ref=f1e431]
+            - cell "1 2 3 4 5" [ref=f1e432]
+            - cell "51" [ref=f1e433]
+            - cell "10" [ref=f1e434]
+            - cell "+41" [ref=f1e435]
+            - cell "51–10" [ref=f1e436]
+            - cell "+41" [ref=f1e437]
+          - row [ref=f1e438]:
+            - cell "2" [ref=f1e439]
+            - cell "RR" [ref=f1e440]
+            - cell "1 2 3 4 5" [ref=f1e441]
+            - cell "51" [ref=f1e442]
+            - cell "10" [ref=f1e443]
+            - cell "+41" [ref=f1e444]
+            - cell "102–20" [ref=f1e445]
+            - cell "+82" [ref=f1e446]
+          - row [ref=f1e447]:
+            - cell "3" [ref=f1e448]
+            - cell "RR" [ref=f1e449]
+            - cell "1 2 3 4 5" [ref=f1e450]
+            - cell "51" [ref=f1e451]
+            - cell "10" [ref=f1e452]
+            - cell "+41" [ref=f1e453]
+            - cell "153–30" [ref=f1e454]
+            - cell "+123" [ref=f1e455]
+          - row [ref=f1e456]:
+            - cell "4" [ref=f1e457]
+            - cell "RR" [ref=f1e458]
+            - cell "1 2 3 4 5" [ref=f1e459]
+            - cell "51" [ref=f1e460]
+            - cell "10" [ref=f1e461]
+            - cell "+41" [ref=f1e462]
+            - cell "204–40" [ref=f1e463]
+            - cell "+164" [ref=f1e464]
+          - row [ref=f1e465]:
+            - cell "5" [ref=f1e466]
+            - cell "RR" [ref=f1e467]
+            - cell "1 2 3 4 5" [ref=f1e468]
+            - cell "51" [ref=f1e469]
+            - cell "10" [ref=f1e470]
+            - cell "+41" [ref=f1e471]
+            - cell "255–50" [ref=f1e472]
+            - cell "+205" [ref=f1e473]
+          - row [ref=f1e474]:
+            - cell "6" [ref=f1e475]
+            - cell "RR" [ref=f1e476]
+            - cell "1 2 3 4 5" [ref=f1e477]
+            - cell "51" [ref=f1e478]
+            - cell "10" [ref=f1e479]
+            - cell "+41" [ref=f1e480]
+            - cell "306–60" [ref=f1e481]
+            - cell "+246" [ref=f1e482]
+          - row [ref=f1e483]:
+            - cell "7" [ref=f1e484]
+            - cell "LC" [ref=f1e485]
+            - cell "6 7 8 9 10" [ref=f1e486]
+            - cell "10" [ref=f1e487]
+            - cell "51" [ref=f1e488]
+            - cell "−41" [ref=f1e489]
+            - cell "316–111" [ref=f1e490]
+            - cell "+205" [ref=f1e491]
+          - row [ref=f1e492]:
+            - cell "8" [ref=f1e493]
+            - cell "LC" [ref=f1e494]
+            - cell "6 7 8 9 10" [ref=f1e495]
+            - cell "10" [ref=f1e496]
+            - cell "51" [ref=f1e497]
+            - cell "−41" [ref=f1e498]
+            - cell "326–162" [ref=f1e499]
+            - cell "+164" [ref=f1e500]
+          - row [ref=f1e501]:
+            - cell "9" [ref=f1e502]
+            - cell "LC" [ref=f1e503]
+            - cell "6 7 8 9 10" [ref=f1e504]
+            - cell "10" [ref=f1e505]
+            - cell "51" [ref=f1e506]
+            - cell "−41" [ref=f1e507]
+            - cell "336–213" [ref=f1e508]
+            - cell "+123" [ref=f1e509]
+          - row [ref=f1e510]:
+            - cell "10" [ref=f1e511]
+            - cell "LC" [ref=f1e512]
+            - cell "6 7 8 9 10" [ref=f1e513]
+            - cell "10" [ref=f1e514]
+            - cell "51" [ref=f1e515]
+            - cell "−41" [ref=f1e516]
+            - cell "346–264" [ref=f1e517]
+            - cell "+82" [ref=f1e518]
+          - row [ref=f1e519]:
+            - cell "11" [ref=f1e520]
+            - cell "LC" [ref=f1e521]
+            - cell "6 7 8 9 10" [ref=f1e522]
+            - cell "10" [ref=f1e523]
+            - cell "51" [ref=f1e524]
+            - cell "−41" [ref=f1e525]
+            - cell "356–315" [ref=f1e526]
+            - cell "+41" [ref=f1e527]
+          - row [ref=f1e528]:
+            - cell "12" [ref=f1e529]
+            - cell "LC" [ref=f1e530]
+            - cell "6 7 8 9 10" [ref=f1e531]
+            - cell "10" [ref=f1e532]
+            - cell "51" [ref=f1e533]
+            - cell "−41" [ref=f1e534]
+            - cell "366–366" [ref=f1e535]
+            - cell "0" [ref=f1e536]
