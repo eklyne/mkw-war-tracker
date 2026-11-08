@@ -1194,6 +1194,7 @@ function renderHistory() {
   histTab === 'stats' ? renderAnalytics() : war ? renderHistoryWar(histWars[histI], histI) : renderHistoryList();
 }
 // EV per track = the average race +/− on it, from spots only: a penalty isn't the track's doing.
+const MIN_RACES = 5;                          // tracks with fewer races than this are left out
 function renderAnalytics() {
   const by = {};
   histWars.forEach(w => w.races.forEach(r => {
@@ -1202,11 +1203,16 @@ function renderAnalytics() {
     s.n++; s.sum += raceScore(r.pos).diff;
   }));
   const ev1 = v => { const x = Math.round(v * 10) / 10; return x > 0 ? `+${x.toFixed(1)}` : x < 0 ? `−${(-x).toFixed(1)}` : '0.0'; };
-  const list = Object.entries(by).map(([code, s]) => ({ t: TRACK[code], n: s.n, ev: s.sum / s.n }))
-    .sort((a, b) => b.ev - a.ev || b.n - a.n);
+  const all = Object.entries(by).map(([code, s]) => ({ t: TRACK[code], n: s.n, ev: s.sum / s.n }));
+  const list = all.filter(x => x.n >= MIN_RACES).sort((a, b) => b.ev - a.ev || b.n - a.n);   // too few races is noise
+  const hidden = all.length - list.length;
   $('histTitle').textContent = 'Analytics';
-  $('histMeta').textContent = `${histWars.length} ${avOnly ? 'Λν ' : ''}war${histWars.length === 1 ? '' : 's'}`;
-  if (!list.length) { $('histBody').innerHTML = '<div class="done">No races with a track yet.</div>'; return; }
+  $('histMeta').textContent = `${histWars.length} ${avOnly ? 'Λν ' : ''}war${histWars.length === 1 ? '' : 's'}`
+    + (hidden ? ` · ${hidden} track${hidden === 1 ? '' : 's'} under ${MIN_RACES} races hidden` : '');
+  if (!list.length) {
+    $('histBody').innerHTML = `<div class="done">${all.length ? `No track has ${MIN_RACES}+ races yet.` : 'No races with a track yet.'}</div>`;
+    return;
+  }
   // One shared scale, zero in the middle, so every bar compares directly with every other.
   const D = Math.max(...list.map(x => Math.abs(x.ev))) || 1;
   const bar = x => {
